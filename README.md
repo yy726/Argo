@@ -4,5 +4,9 @@
 
 This is a playground to re-implement model architectures from industry/academic papers in Pytorch.
 
+### Repo structure
+- data: functions for dataset management, such as downloading public dataset, cache management, etc
+- model: model code implementation
+
 ### Papers
 - [Deep Interest Network for Click-Through Rate Prediction](https://arxiv.org/abs/1706.06978)
