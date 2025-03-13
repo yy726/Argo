@@ -1,15 +1,9 @@
-from dataclasses import dataclass
 from enum import Enum, auto
 import os
 import logging
 import requests
 import zipfile
 import io
-
-
-@dataclass
-class Dataset:
-    path: str
 
 
 class DatasetType(Enum):
@@ -23,7 +17,7 @@ class DatasetType(Enum):
     
     def get_name(self) -> str:
         names = {
-            DatasetType.MOVIE_LENS_LATEST_SMALL: "movie_lens_latest_small",
+            DatasetType.MOVIE_LENS_LATEST_SMALL: "ml-latest-small",
         }
         return names[self]
 
@@ -51,23 +45,34 @@ class DatasetManager:
         self._tmp_folder = tmp_folder
         self._initialized = True
 
-    def get_dataset(self, dataset_type: DatasetType) -> Dataset:
+    def get_dataset(self, dataset_type: DatasetType) -> str:
         dataset_path = os.path.join(self._tmp_folder, dataset_type.get_name())
         if not os.path.exists(dataset_path):
             logging.info(f"Requested dataset {dataset_type} does not exists in cache, start downloading")
-            self.download_dataset(dataset_type=dataset_type)
+            dataset_path = self.download_dataset(dataset_type=dataset_type)
 
-        return Dataset(path=dataset_path)
+        return dataset_path
 
     def download_dataset(self, dataset_type: DatasetType) -> str:
         logging.info(f"Start downloading {dataset_type}...")
         dataset_path = os.path.join(self._tmp_folder, dataset_type.get_name())
         if os.path.exists(dataset_path):
-            return
+            return dataset_path
         
-        # TODO implement the dataset downloading logic here
+        response = requests.get(dataset_type.get_url())
+        if response.status_code == 200:
+            with zipfile.ZipFile(io.BytesIO(response.content)) as zip_ref:
+                zip_ref.extractall(self._tmp_folder)
+                logging.info(f"Dataset {dataset_type.get_name()} downloaded")
+        
+        return dataset_path
+
+
+dataset_manager = DatasetManager()
 
 if __name__ == "__main__":
     dataset_manager = DatasetManager()
 
-    dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_SMALL)
+    path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_SMALL)
+
+    print(os.listdir(path))
