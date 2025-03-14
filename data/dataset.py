@@ -7,6 +7,8 @@ import io
 
 
 class DatasetType(Enum):
+
+    # MovieLens dataset: https://grouplens.org/datasets/movielens/latest/
     MOVIE_LENS_LATEST_SMALL = auto()  # 100k ratings, 3600 tags, 9000 movies, 600 users, updated 9/2018
 
     def get_url(self) -> str:
