@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -56,6 +58,7 @@ class UserHistoryBehaviorPoolingModule(nn.Module):
     def __init__(self):
         super().__init__()
 
+        # TODO customize the parameters
         self.local_attn = LocalActivationUnit(hidden_size=[64, 32], embedding_dim=8)
 
     def forward(self, query, user_history, user_history_length):
@@ -87,7 +90,76 @@ class UserHistoryBehaviorPoolingModule(nn.Module):
         return out
 
 
+@dataclass
+class ModelConfig:
+    dense_features: dict
+    embeddings: dict
+
+
+class DeepInterestModel(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+
+        # TODO move these into a config based settings
+        user_cardinality = 100000
+        user_embedding_dim = 8
+        item_cardinality = 100000
+        item_embedding_dim = 8  # right now this needs to be the same as L62
+        num_dense_features = 8
+
+
+        # user embedding, for simplicity we only use the raw id as the feature for now
+        # TODO add more embedding features, such as semantic features from LLM 
+        self.user_embedding = nn.Embedding(num_embeddings=user_cardinality, embedding_dim=user_embedding_dim)
+
+        # item embedding
+        self.item_embedding = nn.Embedding(num_embeddings=item_cardinality, embedding_dim=item_embedding_dim)
+
+        # attention module
+        self.attn = UserHistoryBehaviorPoolingModule()
+
+        # mlp layers
+        self.head = nn.Sequential(
+            nn.Linear(in_features=user_embedding_dim + 2 * item_embedding_dim + num_dense_features, out_features=256, bias=True),
+            nn.ReLU(),
+            nn.Linear(in_features=256, out_features=64, bias=True),
+            nn.ReLU(),
+            nn.Linear(in_features=64, out_features=1, bias=False),
+            nn.Sigmoid()
+        )
+
+    def forward(self, feature_tensor):
+        """
+            feature_tensor is a dict object, keyed by features
+            ```
+                {
+                    user_id: B x 1
+                    user_history_behavior: B x seq_len
+                    user_history_length: B x 1
+                    item_id (query item or candidate): B x 1
+                    dense_features: B x num_dense                    
+                }
+            ``` 
+        """
+        user_tensor = self.user_embedding(feature_tensor['user_id']).squeeze(1)  # B x user_embed_dim 
+        item_tensor = self.item_embedding(feature_tensor['item_id'])  # B x 1 x item_embed_dim
+        user_history_tensor = self.item_embedding(feature_tensor['user_history_behavior']) # B x seq_len x item_embed_dim
+
+        user_history_tensor_pool = self.attn(
+            item_tensor, user_history_tensor, feature_tensor['user_history_length']
+        ).squeeze(1)  # B x item_embed_dim
+        
+        input_tensor = torch.cat([user_tensor, 
+                                  item_tensor.squeeze(1), 
+                                  user_history_tensor_pool, 
+                                  feature_tensor['dense_features']], dim=-1)  # B x (user_embed_dim + 2 x item_embed_dim + num_dense)
+        out = self.head(input_tensor)
+        return out
+
 if __name__ == "__main__":
+    
+    print("Testing `UserHistoryBehaviorPoolingModule`...")
     B = 3
     max_len = 6
     embedding_dim = 8
@@ -101,6 +173,18 @@ if __name__ == "__main__":
     out = user_behavior_pooling(query, user_history, user_history_length)
     print(out)
 
+    print("Testing `DeepInterestModel`...")
 
+    feature_tensor = {
+        "user_id": torch.tensor([[111], [222], [333]]),  # 3 x 1
+        "user_history_behavior": torch.tensor([[123, 124, 0, 0, 0, 0], 
+                                               [221, 222, 232, 255, 0, 0], 
+                                               [333, 0, 0, 0, 0, 0]]),  # 3 x 6 (max len, static)
+        "user_history_length": torch.tensor([[2], [4], [1]]),  # 3 x 1
+        "item_id": torch.tensor([[125], [266], [334]]),  # 3 x 1
+        "dense_features": torch.ones((3, 8))
+    }
 
-
+    din = DeepInterestModel()
+    out = din(feature_tensor)
+    print(out)
