@@ -71,10 +71,3 @@ class DatasetManager:
 
 
 dataset_manager = DatasetManager()
-
-if __name__ == "__main__":
-    dataset_manager = DatasetManager()
-
-    path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_SMALL)
-
-    print(os.listdir(path))

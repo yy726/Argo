@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import os
 import pandas as pd
 
-from dataset import DatasetType, dataset_manager
+from data.dataset import DatasetType, dataset_manager
 
 
 @dataclass
