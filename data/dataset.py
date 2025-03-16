@@ -1,80 +1,89 @@
-from enum import Enum, auto
+from dataclasses import dataclass
 import os
-import logging
-import requests
-import zipfile
-import io
+import pandas as pd
+
+import torch
+from torch.utils.data import Dataset, DataLoader
+
+from data.dataset_manager import DatasetType, dataset_manager
 
 
-class DatasetType(Enum):
+class MovieLenDataset(Dataset):
 
-    # MovieLens dataset: https://grouplens.org/datasets/movielens/latest/
-    MOVIE_LENS_LATEST_SMALL = auto()  # 100k ratings, 3600 tags, 9000 movies, 600 users, updated 9/2018
+    def __init__(self, history_seq_length: int = 6, include_hard_negative: bool = False):
+        cached_path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_SMALL)
 
-    def get_url(self) -> str:
-        urls = {
-            DatasetType.MOVIE_LENS_LATEST_SMALL: "https://files.grouplens.org/datasets/movielens/ml-latest-small.zip",
-        }
-        return urls[self]
+        # TODO optimization to preprocess data and load on-demand
+        links = pd.read_csv(os.path.join(cached_path, 'links.csv'))
+        movies = pd.read_csv(os.path.join(cached_path, 'movies.csv'))
+        ratings = pd.read_csv(os.path.join(cached_path, 'ratings.csv'))
+        links = pd.read_csv(os.path.join(cached_path, 'links.csv'))
+
+        # seq feature generation, simplified version, no padding, the minimal
+        # length from the ml-latest is 20, for now we assume that
+        # sequence feature length + num positive sample <= 20
+        user_history_sequence_feature = (
+            ratings.groupby('userId')
+            .apply(lambda x: x.sort_values('timestamp').head(history_seq_length)['movieId'].tolist())  # for group less than `history_seq_length`, this would return all rows
+            .reset_index(name="history_sequence_feature")
+            .rename(columns={'userId': 'user_id'})
+        )  # user_id, historySequenceFeature
+
+        # positive candidate generation, use rating >= 5.0 as positive
+        # negative candidate generation, use rateing <= 2.0 as negative
+        df = (
+            ratings.groupby('userId')
+            .apply(lambda x: x.sort_values('timestamp').iloc[history_seq_length:])  # use sequence that is not part of the sequence feature to prevent label leakage
+            .reset_index(drop=True)
+        )
+
+        positive = (
+            df[df['rating'] >= 5.0].groupby('userId')
+            .apply(lambda x: x.sort_values('timestamp').head(10))
+            .reset_index(drop=True)
+            .drop(columns=['rating', 'timestamp'])
+            .rename(columns={'userId': 'user_id', 'movieId': 'movie_id'})
+        )  # user_id, movie_id
+        positive['label'] = 1.0
+
+        negative = (
+            df[df['rating'] <= 2.0].groupby('userId')
+            .apply(lambda x: x.sort_values('timestamp').head(50))
+            .reset_index(drop=True)
+            .drop(columns=['rating', 'timestamp'])
+            .rename(columns={'userId': 'user_id', 'movieId': 'movie_id'})
+        )
+        negative['label'] = 0.0
+
+        self.training_data = (
+            pd.concat([positive, negative], axis=0)  # user_id, movie_id, label
+            .merge(user_history_sequence_feature, on='user_id')
+        )
+
+    def __len__(self):
+        return self.training_data.shape[0]
     
-    def get_name(self) -> str:
-        names = {
-            DatasetType.MOVIE_LENS_LATEST_SMALL: "ml-latest-small",
+    def __getitem__(self, index):
+        feature = {
+            "user_id": torch.tensor([self.training_data.loc[index]['user_id']]),
+            "item_id": torch.tensor([self.training_data.loc[index]['movie_id']]),
+            "user_history_behavior": torch.tensor(self.training_data.loc[index]['history_sequence_feature'])
         }
-        return names[self]
+        return feature, torch.tensor(self.training_data.loc[index]['label'])
 
-
-class DatasetManager:
-    """
-        This is a manager class to handle the dataset on the host, the dataset would
-        be downloaded and cached in the /tmp folder by default
-    """
-    _instance = None
-
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super(DatasetManager, cls).__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-    
-    def __init__(self, tmp_folder: str = "/tmp"):
-        if self._initialized:
-            return
-        
-        if not os.path.exists(tmp_folder):
-            os.makedirs(tmp_folder)
-
-        self._tmp_folder = tmp_folder
-        self._initialized = True
-
-    def get_dataset(self, dataset_type: DatasetType) -> str:
-        dataset_path = os.path.join(self._tmp_folder, dataset_type.get_name())
-        if not os.path.exists(dataset_path):
-            logging.info(f"Requested dataset {dataset_type} does not exists in cache, start downloading")
-            dataset_path = self.download_dataset(dataset_type=dataset_type)
-
-        return dataset_path
-
-    def download_dataset(self, dataset_type: DatasetType) -> str:
-        logging.info(f"Start downloading {dataset_type}...")
-        dataset_path = os.path.join(self._tmp_folder, dataset_type.get_name())
-        if os.path.exists(dataset_path):
-            return dataset_path
-        
-        response = requests.get(dataset_type.get_url())
-        if response.status_code == 200:
-            with zipfile.ZipFile(io.BytesIO(response.content)) as zip_ref:
-                zip_ref.extractall(self._tmp_folder)
-                logging.info(f"Dataset {dataset_type.get_name()} downloaded")
-        
-        return dataset_path
-
-
-dataset_manager = DatasetManager()
 
 if __name__ == "__main__":
-    dataset_manager = DatasetManager()
+    dataset = MovieLenDataset(history_seq_length=8)
 
-    path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_SMALL)
+    loader = DataLoader(dataset=dataset, batch_size=5)
 
-    print(os.listdir(path))
+    it = iter(loader)
+    batch = next(it)
+
+    assert batch[0]['user_id'].shape == (5, 1)
+    assert batch[0]['item_id'].shape == (5, 1)
+    assert batch[0]['user_history_behavior'].shape == (5, 8)
+
+    assert batch[1].shape == (5,)
+
+    print("Batch shape test passed...")
