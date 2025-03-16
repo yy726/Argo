@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+import numpy as np
 import os
 import pandas as pd
 
@@ -11,6 +11,8 @@ from data.dataset_manager import DatasetType, dataset_manager
 class MovieLenDataset(Dataset):
 
     def __init__(self, history_seq_length: int = 6, include_hard_negative: bool = False):
+        self.history_seq_length = history_seq_length
+
         cached_path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_SMALL)
 
         # TODO optimization to preprocess data and load on-demand
@@ -18,6 +20,13 @@ class MovieLenDataset(Dataset):
         movies = pd.read_csv(os.path.join(cached_path, 'movies.csv'))
         ratings = pd.read_csv(os.path.join(cached_path, 'ratings.csv'))
         links = pd.read_csv(os.path.join(cached_path, 'links.csv'))
+
+        # reindex movie id to compact version
+        # use factorize to compute new mapping of ids
+        movies['movieId'], self.unique_ids = pd.factorize(movies['movieId'])
+        # use the new mapping of ids as categorical to do assignment, then use code to extract the new ids
+        # due to `pd.Categorical`, the movieId is converted to int16, need to convert back to int64
+        ratings['movieId'] = pd.Categorical(ratings['movieId'], categories=self.unique_ids).codes.astype(np.int64)
 
         # seq feature generation, simplified version, no padding, the minimal
         # length from the ml-latest is 20, for now we assume that
@@ -67,7 +76,9 @@ class MovieLenDataset(Dataset):
         feature = {
             "user_id": torch.tensor([self.training_data.loc[index]['user_id']]),
             "item_id": torch.tensor([self.training_data.loc[index]['movie_id']]),
-            "user_history_behavior": torch.tensor(self.training_data.loc[index]['history_sequence_feature'])
+            "user_history_behavior": torch.tensor(self.training_data.loc[index]['history_sequence_feature']),
+            "user_history_length": torch.tensor([self.history_seq_length]),
+            "dense_features": torch.ones([8]),
         }
         return feature, torch.tensor(self.training_data.loc[index]['label'])
 
@@ -85,5 +96,9 @@ if __name__ == "__main__":
     assert batch[0]['user_history_behavior'].shape == (5, 8)
 
     assert batch[1].shape == (5,)
+
+    # check type of the output
+    assert batch[0]['user_id'].dtype == torch.int64
+    assert batch[0]['item_id'].dtype == torch.int64
 
     print("Batch shape test passed...")
