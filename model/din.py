@@ -142,6 +142,8 @@ class DeepInterestModel(nn.Module):
                 }
             ``` 
         """
+        # the squeeze operation could be optimized here, for now I leave it here to make the shape inference
+        # more consistent and easier for understanding
         user_tensor = self.user_embedding(feature_tensor['user_id']).squeeze(1)  # B x user_embed_dim 
         item_tensor = self.item_embedding(feature_tensor['item_id'])  # B x 1 x item_embed_dim
         user_history_tensor = self.item_embedding(feature_tensor['user_history_behavior']) # B x seq_len x item_embed_dim
