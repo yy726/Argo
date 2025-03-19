@@ -1,6 +1,6 @@
 ## Argo
 
-![Argo](https://github.com/user-attachments/assets/8eb6a4c1-bbcc-486d-92a5-6c24e6e2f0be) { width: 200px; }
+![Argo](https://github.com/user-attachments/assets/8eb6a4c1-bbcc-486d-92a5-6c24e6e2f0be){ width: 200px; }
 
 > Argo, the ship that carried Jason and the Argonauts on their quest for the Golden Fleece
 
