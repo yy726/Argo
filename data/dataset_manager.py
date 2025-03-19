@@ -47,9 +47,12 @@ class DatasetManager:
         self._tmp_folder = tmp_folder
         self._initialized = True
 
+    def _dataset_exists(self, dataset_path):
+        return os.path.exists(dataset_path) and os.listdir(dataset_path)
+
     def get_dataset(self, dataset_type: DatasetType) -> str:
         dataset_path = os.path.join(self._tmp_folder, dataset_type.get_name())
-        if not os.path.exists(dataset_path):
+        if not self._dataset_exists(dataset_path):
             logging.info(f"Requested dataset {dataset_type} does not exists in cache, start downloading")
             dataset_path = self.download_dataset(dataset_type=dataset_type)
 
@@ -58,7 +61,7 @@ class DatasetManager:
     def download_dataset(self, dataset_type: DatasetType) -> str:
         logging.info(f"Start downloading {dataset_type}...")
         dataset_path = os.path.join(self._tmp_folder, dataset_type.get_name())
-        if os.path.exists(dataset_path):
+        if self._dataset_exists(dataset_path):
             return dataset_path
         
         response = requests.get(dataset_type.get_url())

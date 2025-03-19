@@ -39,7 +39,7 @@ class MovieLenDataset(Dataset):
         )  # user_id, historySequenceFeature
 
         # positive candidate generation, use rating >= 5.0 as positive
-        # negative candidate generation, use rateing <= 2.0 as negative
+        # negative candidate generation, use rating <= 2.0 as negative
         df = (
             ratings.groupby('userId')
             .apply(lambda x: x.sort_values('timestamp').iloc[history_seq_length:])  # use sequence that is not part of the sequence feature to prevent label leakage
@@ -67,7 +67,7 @@ class MovieLenDataset(Dataset):
         self.training_data = (
             pd.concat([positive, negative], axis=0)  # user_id, movie_id, label
             .merge(user_history_sequence_feature, on='user_id')
-        )
+        ).sample(frac=1).reset_index(drop=True)  # shuffle the rows
 
     def __len__(self):
         return self.training_data.shape[0]
@@ -80,7 +80,7 @@ class MovieLenDataset(Dataset):
             "user_history_length": torch.tensor([self.history_seq_length]),
             "dense_features": torch.ones([8]),
         }
-        return feature, torch.tensor(self.training_data.loc[index]['label'])
+        return feature, torch.tensor(self.training_data.loc[index]['label'], dtype=torch.float32)
 
 
 if __name__ == "__main__":
