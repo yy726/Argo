@@ -2,6 +2,7 @@ from torch.utils.data import DataLoader
 
 from data.dataset import MovieLenDataset
 from model.din import DeepInterestModel
+from trainer.simple_trainer import SimpleTrainer
 
 
 if __name__ == "__main__":
@@ -9,11 +10,5 @@ if __name__ == "__main__":
     loader = DataLoader(dataset=dataset, batch_size=16)
     model = DeepInterestModel()
 
-    # TODO: the current version would fail because the movie id is exceeding the hard-coded
-    # item embedding table cardinality, the total cardinality in ML small is around 10k,
-    # need to reindex the movie-ids to make it more compact
-    for feature, label in loader:
-        out = model(feature)
-        print(out)
-
-        break
+    trainer = SimpleTrainer(model=model, data_loader=loader)
+    trainer.train(num_epochs=3)
