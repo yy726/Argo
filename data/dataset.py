@@ -10,9 +10,14 @@ from data.dataset_manager import DatasetType, dataset_manager
 
 class MovieLenDataset(Dataset):
 
-    def __init__(self, history_seq_length: int = 6, include_hard_negative: bool = False):
-        self.history_seq_length = history_seq_length
+    @classmethod
+    def prepare_data(cls, history_seq_length: int = 6):
+        """
+            This is the core function to process raw MovieLen dataset to generate the
+            training samples, including feature engineering, label generation, movie id reindex, etc
 
+            Return the prepare training data, as well as the movie id index mapping 
+        """
         cached_path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_SMALL)
 
         # TODO optimization to preprocess data and load on-demand
@@ -23,10 +28,10 @@ class MovieLenDataset(Dataset):
 
         # reindex movie id to compact version
         # use factorize to compute new mapping of ids
-        movies['movieId'], self.unique_ids = pd.factorize(movies['movieId'])
+        movies['movieId'], unique_ids = pd.factorize(movies['movieId'])
         # use the new mapping of ids as categorical to do assignment, then use code to extract the new ids
         # due to `pd.Categorical`, the movieId is converted to int16, need to convert back to int64
-        ratings['movieId'] = pd.Categorical(ratings['movieId'], categories=self.unique_ids).codes.astype(np.int64)
+        ratings['movieId'] = pd.Categorical(ratings['movieId'], categories=unique_ids).codes.astype(np.int64)
 
         # seq feature generation, simplified version, no padding, the minimal
         # length from the ml-latest is 20, for now we assume that
@@ -64,29 +69,59 @@ class MovieLenDataset(Dataset):
         )
         negative['label'] = 0.0
 
-        self.training_data = (
+        training_data = (
             pd.concat([positive, negative], axis=0)  # user_id, movie_id, label
             .merge(user_history_sequence_feature, on='user_id')
         ).sample(frac=1).reset_index(drop=True)  # shuffle the rows
 
+        return training_data, unique_ids
+
+    def __init__(self, history_seq_length, data, unique_ids):
+        self.history_seq_length = history_seq_length
+        self.data = data
+        self.unique_ids = unique_ids
+
     def __len__(self):
-        return self.training_data.shape[0]
+        return self.data.shape[0]
     
     def __getitem__(self, index):
         feature = {
-            "user_id": torch.tensor([self.training_data.loc[index]['user_id']]),
-            "item_id": torch.tensor([self.training_data.loc[index]['movie_id']]),
-            "user_history_behavior": torch.tensor(self.training_data.loc[index]['history_sequence_feature']),
+            "user_id": torch.tensor([self.data.loc[index]['user_id']]),
+            "item_id": torch.tensor([self.data.loc[index]['movie_id']]),
+            "user_history_behavior": torch.tensor(self.data.loc[index]['history_sequence_feature']),
             "user_history_length": torch.tensor([self.history_seq_length]),
             "dense_features": torch.ones([8]),
         }
-        return feature, torch.tensor(self.training_data.loc[index]['label'], dtype=torch.float32)
+        return feature, torch.tensor(self.data.loc[index]['label'], dtype=torch.float32)
+
+
+def prepare_movie_len_dataset(history_seq_length: int = 6, eval_ratio: float = 0.2):
+    """
+        A helper function to prepare movie len dataset, since the MovieLen dataset is not split
+        before hand into train/val/eval, I use this function to read the entire dataset and do
+        the split of data to avoid potential leakage
+    """
+    data, unique_ids = MovieLenDataset.prepare_data(history_seq_length=history_seq_length)  # this returns all data
+
+    eval_data = data.sample(frac=eval_ratio)
+    train_data = data.drop(eval_data.index)
+
+    train_data = train_data.reset_index(drop=True)
+    eval_data = eval_data.reset_index(drop=True)
+
+    return MovieLenDataset(history_seq_length=history_seq_length, 
+                           data=train_data, 
+                           unique_ids=unique_ids), \
+           MovieLenDataset(history_seq_length=history_seq_length,
+                           data=eval_data,
+                           unique_ids=unique_ids) 
+
 
 
 if __name__ == "__main__":
-    dataset = MovieLenDataset(history_seq_length=8)
+    train_dataset, eval_dataset = prepare_movie_len_dataset(history_seq_length=8)
 
-    loader = DataLoader(dataset=dataset, batch_size=5)
+    loader = DataLoader(dataset=train_dataset, batch_size=5)
 
     it = iter(loader)
     batch = next(it)
