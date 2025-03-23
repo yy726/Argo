@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -86,4 +89,24 @@ class SimpleTrainer:
             precision, recall, _ = precision_recall_curve(all_targets, all_predictions)
             aucpr = auc(recall, precision)
             print(f"Aucpr: {aucpr:.4f}")
+
+    def save(self, model_name, movie_index, path="/tmp"):
+        """
+            A simple function to save pytorch model
+        """
+        if not os.path.exists(path):
+            raise ValueError(f"The given path {path} does not exists")
+        filename = os.path.join(path, model_name)
+        file_path = Path(filename)
+        if not file_path.suffix:
+            filename += ".pth"
+        elif file_path.suffix != ".pth":
+            raise ValueError(f"Invalid extension provided {file_path.suffix}")
+        
+        checkpoint = {
+            "movie_index": movie_index,
+            "model_state_dict": self.model.state_dict()
+        }
+
+        torch.save(checkpoint, filename)
         

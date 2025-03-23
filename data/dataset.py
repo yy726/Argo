@@ -10,6 +10,46 @@ from data.dataset_manager import DatasetType, dataset_manager
 
 class MovieLenDataset(Dataset):
 
+    # TODO: remove movie_index from function signature
+    @classmethod
+    def candidate_generation(cls, movie_index):
+        """
+            This is a simplified function to generate the candidates for the movie recommendation
+            task. For now, we would return all movies within the dataset as candidates and adopt
+            `rank-them-all` strategy. This is seldom used in practice due to the volume of candidates.
+            I will add other candidate retrieval strategy later.  
+        """
+        cached_path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_SMALL)
+
+        movies = pd.read_csv(os.path.join(cached_path, 'movies.csv'))
+        # since we have reindex movie during training, we need to use the same reindex map to reindex
+        # the movie id, otherwise we would match to the wrong candidates
+        movies['movieId'] = pd.Categorical(movies['movieId'], categories=movie_index).codes.astype(np.int64)
+        # return each row in a record with column as key name
+        return movies.to_dict('records')
+    
+
+    @classmethod
+    def generate_user_sequence_feature(cls, start_pos, history_seq_length, movie_index):
+        """
+            A simple function to generate user sequence features
+        """
+        cached_path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_SMALL)
+
+        ratings = pd.read_csv(os.path.join(cached_path, 'ratings.csv'))
+        ratings['movieId'] = pd.Categorical(ratings['movieId'], categories=movie_index).codes.astype(np.int64)
+
+        # TODO: refactor this into a common util function
+        user_history_sequence_feature = (
+            ratings.groupby('userId')
+            .apply(lambda x: x.sort_values('timestamp').head(history_seq_length)['movieId'].tolist())  # for group less than `history_seq_length`, this would return all rows
+            .reset_index(name="history_sequence_feature")
+            .rename(columns={'userId': 'user_id'})
+        )  # user_id, historySequenceFeature
+
+        return user_history_sequence_feature
+
+
     @classmethod
     def prepare_data(cls, history_seq_length: int = 6):
         """
@@ -114,12 +154,13 @@ def prepare_movie_len_dataset(history_seq_length: int = 6, eval_ratio: float = 0
                            unique_ids=unique_ids), \
            MovieLenDataset(history_seq_length=history_seq_length,
                            data=eval_data,
-                           unique_ids=unique_ids) 
+                           unique_ids=unique_ids), \
+           unique_ids 
 
 
 
 if __name__ == "__main__":
-    train_dataset, eval_dataset = prepare_movie_len_dataset(history_seq_length=8)
+    train_dataset, eval_dataset, movie_index = prepare_movie_len_dataset(history_seq_length=8)
 
     loader = DataLoader(dataset=train_dataset, batch_size=5)
 
@@ -137,3 +178,7 @@ if __name__ == "__main__":
     assert batch[0]['item_id'].dtype == torch.int64
 
     print("Batch shape test passed...")
+
+    candidates = MovieLenDataset.candidate_generation(movie_index=movie_index)
+    assert candidates[0]['movieId'] == 0
+    assert candidates[-1]['movieId'] == 9741
