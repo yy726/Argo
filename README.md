@@ -25,5 +25,5 @@ This is a playground to re-implement model architectures from industry/academic 
 
 ### Road Map
 
-- [x] Deep Interest Network E2E training & inference example, MovieLen Small
+- [x] :white_check_mark: Deep Interest Network E2E training & inference example, MovieLen Small
 - [ ] Deep Interest Network Scaling, MovieLen 32M dataset
