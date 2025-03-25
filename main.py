@@ -6,8 +6,10 @@ from trainer.simple_trainer import SimpleTrainer
 
 
 if __name__ == "__main__":
-    train_dataset, eval_dataset = prepare_movie_len_dataset(history_seq_length=8)
+    train_dataset, eval_dataset, movie_index = prepare_movie_len_dataset(history_seq_length=8)
     model = DeepInterestModel()
 
     trainer = SimpleTrainer(model=model, train_dataset=train_dataset, eval_dataset=eval_dataset)
     trainer.train(num_epochs=5)
+
+    trainer.save(model_name="din-movie-len-small", movie_index=movie_index)

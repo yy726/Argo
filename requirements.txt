@@ -2,3 +2,5 @@ pandas
 requests
 torch
 scikit-learn
+fastapi
+uvicorn

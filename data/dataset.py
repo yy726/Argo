@@ -114,12 +114,13 @@ def prepare_movie_len_dataset(history_seq_length: int = 6, eval_ratio: float = 0
                            unique_ids=unique_ids), \
            MovieLenDataset(history_seq_length=history_seq_length,
                            data=eval_data,
-                           unique_ids=unique_ids) 
+                           unique_ids=unique_ids), \
+           unique_ids 
 
 
 
 if __name__ == "__main__":
-    train_dataset, eval_dataset = prepare_movie_len_dataset(history_seq_length=8)
+    train_dataset, eval_dataset, movie_index = prepare_movie_len_dataset(history_seq_length=8)
 
     loader = DataLoader(dataset=train_dataset, batch_size=5)
 
@@ -137,3 +138,7 @@ if __name__ == "__main__":
     assert batch[0]['item_id'].dtype == torch.int64
 
     print("Batch shape test passed...")
+
+    candidates = MovieLenDataset.candidate_generation(movie_index=movie_index)
+    assert candidates[0]['movieId'] == 0
+    assert candidates[-1]['movieId'] == 9741
