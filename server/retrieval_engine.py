@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 import pandas as pd
 
 from data.dataset_manager import DatasetType, dataset_manager
@@ -17,7 +18,7 @@ class RetrievalEngine:
         # the movie id, otherwise we would match to the wrong candidates
         movies['movieId'] = pd.Categorical(movies['movieId'], categories=movie_index).codes.astype(np.int64)
         # return each row in a record with column as key name
-        self.candidates = movies.to_dict('record')
+        self.candidates = movies.to_dict('records')
 
     def generate_candidates(self):
         """
