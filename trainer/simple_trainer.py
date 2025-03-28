@@ -104,9 +104,10 @@ class SimpleTrainer:
             raise ValueError(f"Invalid extension provided {file_path.suffix}")
         
         checkpoint = {
-            "movie_index": movie_index,
-            "model_state_dict": self.model.state_dict()
+            "model_state_dict": self.model.state_dict(),
         }
+        if movie_index:
+            checkpoint["movie_index"] = movie_index
 
         torch.save(checkpoint, filename)
         

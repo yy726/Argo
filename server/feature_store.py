@@ -17,8 +17,7 @@ class FeatureStore:
 
         For now we only support the movie len related feature extraction.
     """
-    def __init__(self, movie_index):
-        self.movie_index = movie_index
+    def __init__(self):
         self.store = {}
 
         # we use a precompute strategy to populate the feature values and hold them in memory as of now
@@ -28,8 +27,6 @@ class FeatureStore:
         cached_path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_SMALL)
 
         ratings = pd.read_csv(os.path.join(cached_path, 'ratings.csv'))
-        ratings['movieId'] = pd.Categorical(ratings['movieId'], 
-                                            categories=self.movie_index).codes.astype(np.int64)
 
         user_history_sequence_feature = (
             ratings.groupby('userId')
@@ -47,13 +44,9 @@ class FeatureStore:
 
 
 if __name__ == "__main__":
-    import pickle
-    # this is for module test only, load the previous generated movie index file
-    with open('/tmp/movie_index.pkl', 'rb') as file:
-        movie_index = pickle.load(file)
-    feature_store = FeatureStore(movie_index=movie_index)
+    feature_store = FeatureStore()
 
     user_history_sequence = feature_store.generate_feature(FeatureName.USER_HISTORY_SEQUENCE_FEATURE,
                                                            1)
-    assert user_history_sequence[0] == 911
-    assert user_history_sequence[-1] == 1874
+    assert user_history_sequence[0] == 1210
+    assert user_history_sequence[-1] == 2492

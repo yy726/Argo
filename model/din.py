@@ -1,8 +1,8 @@
-from dataclasses import dataclass
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from configs.model import ModelConfig, DIN_SMALL_CONFIG
 
 """
 This is a trial to re-implement the model architecture in paper
@@ -90,15 +90,9 @@ class UserHistoryBehaviorPoolingModule(nn.Module):
         return out
 
 
-@dataclass
-class ModelConfig:
-    dense_features: dict
-    embeddings: dict
-
-
 class DeepInterestModel(nn.Module):
 
-    def __init__(self):
+    def __init__(self, config: ModelConfig):
         super().__init__()
 
         # TODO move these into a config based settings
@@ -111,17 +105,21 @@ class DeepInterestModel(nn.Module):
 
         # user embedding, for simplicity we only use the raw id as the feature for now
         # TODO add more embedding features, such as semantic features from LLM 
-        self.user_embedding = nn.Embedding(num_embeddings=user_cardinality, embedding_dim=user_embedding_dim)
+        self.user_embedding = nn.Embedding(num_embeddings=config.user_cardinality, 
+                                           embedding_dim=config.user_embedding_dim)
 
         # item embedding
-        self.item_embedding = nn.Embedding(num_embeddings=item_cardinality, embedding_dim=item_embedding_dim)
+        self.item_embedding = nn.Embedding(num_embeddings=config.item_cardinality, 
+                                           embedding_dim=config.item_embedding_dim)
 
         # attention module
         self.attn = UserHistoryBehaviorPoolingModule()
 
         # mlp layers
         self.head = nn.Sequential(
-            nn.Linear(in_features=user_embedding_dim + 2 * item_embedding_dim + num_dense_features, out_features=256, bias=True),
+            nn.Linear(in_features=config.user_embedding_dim + 2 * config.item_embedding_dim + config.num_dense_features, 
+                      out_features=256, 
+                      bias=True),
             nn.ReLU(),
             nn.Linear(in_features=256, out_features=64, bias=True),
             nn.ReLU(),
@@ -187,6 +185,6 @@ if __name__ == "__main__":
         "dense_features": torch.ones((3, 8))
     }
 
-    din = DeepInterestModel()
+    din = DeepInterestModel(config=DIN_SMALL_CONFIG)
     out = din(feature_tensor)
     print(out)
