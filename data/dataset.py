@@ -11,7 +11,7 @@ from data.dataset_manager import DatasetType, dataset_manager
 class MovieLenDataset(Dataset):
 
     @classmethod
-    def prepare_data(cls, history_seq_length: int = 6):
+    def prepare_data(cls, history_seq_length: int = 6, reindex=False):
         """
             This is the core function to process raw MovieLen dataset to generate the
             training samples, including feature engineering, label generation, movie id reindex, etc
@@ -26,12 +26,14 @@ class MovieLenDataset(Dataset):
         ratings = pd.read_csv(os.path.join(cached_path, 'ratings.csv'))
         links = pd.read_csv(os.path.join(cached_path, 'links.csv'))
 
-        # reindex movie id to compact version
-        # use factorize to compute new mapping of ids
-        movies['movieId'], unique_ids = pd.factorize(movies['movieId'])
-        # use the new mapping of ids as categorical to do assignment, then use code to extract the new ids
-        # due to `pd.Categorical`, the movieId is converted to int16, need to convert back to int64
-        ratings['movieId'] = pd.Categorical(ratings['movieId'], categories=unique_ids).codes.astype(np.int64)
+        unique_ids = None
+        if reindex:
+            # reindex movie id to compact version
+            # use factorize to compute new mapping of ids
+            movies['movieId'], unique_ids = pd.factorize(movies['movieId'])
+            # use the new mapping of ids as categorical to do assignment, then use code to extract the new ids
+            # due to `pd.Categorical`, the movieId is converted to int16, need to convert back to int64
+            ratings['movieId'] = pd.Categorical(ratings['movieId'], categories=unique_ids).codes.astype(np.int64)
 
         # seq feature generation, simplified version, no padding, the minimal
         # length from the ml-latest is 20, for now we assume that
@@ -95,13 +97,13 @@ class MovieLenDataset(Dataset):
         return feature, torch.tensor(self.data.loc[index]['label'], dtype=torch.float32)
 
 
-def prepare_movie_len_dataset(history_seq_length: int = 6, eval_ratio: float = 0.2):
+def prepare_movie_len_dataset(history_seq_length: int = 6, eval_ratio: float = 0.2, reindex=False):
     """
         A helper function to prepare movie len dataset, since the MovieLen dataset is not split
         before hand into train/val/eval, I use this function to read the entire dataset and do
         the split of data to avoid potential leakage
     """
-    data, unique_ids = MovieLenDataset.prepare_data(history_seq_length=history_seq_length)  # this returns all data
+    data, unique_ids = MovieLenDataset.prepare_data(history_seq_length=history_seq_length, reindex=reindex)  # this returns all data
 
     eval_data = data.sample(frac=eval_ratio)
     train_data = data.drop(eval_data.index)
@@ -120,7 +122,7 @@ def prepare_movie_len_dataset(history_seq_length: int = 6, eval_ratio: float = 0
 
 
 if __name__ == "__main__":
-    train_dataset, eval_dataset, movie_index = prepare_movie_len_dataset(history_seq_length=8)
+    train_dataset, eval_dataset, movie_index = prepare_movie_len_dataset(history_seq_length=8, reindex=True)
 
     loader = DataLoader(dataset=train_dataset, batch_size=5)
 
@@ -138,7 +140,3 @@ if __name__ == "__main__":
     assert batch[0]['item_id'].dtype == torch.int64
 
     print("Batch shape test passed...")
-
-    candidates = MovieLenDataset.candidate_generation(movie_index=movie_index)
-    assert candidates[0]['movieId'] == 0
-    assert candidates[-1]['movieId'] == 9741

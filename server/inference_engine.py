@@ -5,6 +5,7 @@ from fastapi.concurrency import run_in_threadpool
 
 from pydantic import BaseModel
 
+from configs.model import DIN_SMALL_CONFIG
 from model.din import DeepInterestModel
 from server.retrieval_engine import RetrievalEngine
 from server.feature_store import FeatureStore, FeatureName
@@ -18,13 +19,13 @@ app = FastAPI()
 
 # for now we hard code the model to be used for inference
 checkpoint = torch.load('/tmp/din-movie-len-small.pth', weights_only=False)
-model = DeepInterestModel()
+model = DeepInterestModel(config=DIN_SMALL_CONFIG)
 model.load_state_dict(checkpoint['model_state_dict'])
 model.eval()
 
 # initialize candidate generation and feature store
-retrieval_engine = RetrievalEngine(movie_index=checkpoint['movie_index'])
-feature_store = FeatureStore(movie_index=checkpoint['movie_index'])
+retrieval_engine = RetrievalEngine()
+feature_store = FeatureStore()
 
 @app.post("/recommend/")
 async def recommend(request: RecommendationRequest):

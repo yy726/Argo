@@ -4,7 +4,7 @@
 
 > Argo, the ship that carried Jason and the Argonauts on their quest for the Golden Fleece
 
-This is a playground to re-implement model architectures from industry/academic papers in Pytorch. The primary goal is educational and the target audiance is for those who would like to start journey in machine learning & machine learning infra. The code implementation is optimized for readablility and explainability, while not for the best of performance.
+This is a playground to re-implement model architectures from industry/academic papers in Pytorch. The primary goal is educational and the target audience is for those who would like to start journey in machine learning & machine learning infra. The code implementation is optimized for readability and expandability, while not for the best of performance.
 
 ### Repo structure
 
@@ -22,8 +22,12 @@ This is a playground to re-implement model architectures from industry/academic 
 ### Papers
 
 - [Deep Interest Network for Click-Through Rate Prediction](https://arxiv.org/abs/1706.06978)
+- [Actions Speak Louder than Words: Trillion-Parameter Sequential Transducers for Generative Recommendations](https://arxiv.org/pdf/2402.17152)
+- [Better Generalization with Semantic IDs: A Case Study in Ranking for Recommendations](https://dl.acm.org/doi/abs/10.1145/3640457.3688190)
 
 ### Road Map
 
 - [x] :white_check_mark: Deep Interest Network E2E training & inference example, MovieLen Small
+- [ ] HSTU training & inference example, MoiveLen Small
+- [ ] Kuaishou Dataset
 - [ ] Deep Interest Network Scaling, MovieLen 32M dataset
