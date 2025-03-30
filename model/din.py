@@ -11,6 +11,11 @@ This is a trial to re-implement the model architecture in paper
     https://arxiv.org/pdf/1706.06978
 
 with certain simplification
+
+Code reference:
+    1. https://github.com/zhougr1993/DeepInterestNetwork/tree/master
+    2. https://github.com/fanoping/DIN-pytorch/tree/master
+
 """
 
 
