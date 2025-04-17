@@ -100,14 +100,6 @@ class DeepInterestModel(nn.Module):
     def __init__(self, config: ModelConfig):
         super().__init__()
 
-        # TODO move these into a config based settings
-        user_cardinality = 100000
-        user_embedding_dim = 8
-        item_cardinality = 100000
-        item_embedding_dim = 8  # right now this needs to be the same as L62
-        num_dense_features = 8
-
-
         # user embedding, for simplicity we only use the raw id as the feature for now
         # TODO add more embedding features, such as semantic features from LLM 
         self.user_embedding = nn.Embedding(num_embeddings=config.user_cardinality, 

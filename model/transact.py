@@ -20,7 +20,7 @@ class TransActModule(nn.Module):
         super().__init__()
 
         # TODO: move to model config
-        self.max_seq_len = 10  # the number of sequence length to use
+        self.max_seq_len = 4  # the number of sequence length to use
         self.d_action = 16
         self.d_item = 128
         self.top_k = 3
@@ -31,13 +31,15 @@ class TransActModule(nn.Module):
                                              padding_idx=0)
         # for now we would reuse the existing encoder layer available in pytorch for simplicity
         # we would use our customized encoder implementation
+        d_model = self.d_action + 2 * self.d_item
         self.encoding_layer = nn.TransformerEncoderLayer(
-            d_model=self.d_action + 2 * self.d_item,
+            d_model=d_model,
             nhead=1,
             dim_feedforward=1024,
             batch_first=True,  # this makes sure it is B x seq x dim
         )
         self.encoder = nn.TransformerEncoder(encoder_layer=self.encoding_layer, num_layers=2)
+        self.out_linear = nn.Linear(d_model, d_model)
 
     def forward(self, action_sequence, item_sequence, candidate):
         """
@@ -69,10 +71,26 @@ class TransActModule(nn.Module):
                                  src_key_padding_mask=attn_mask)  # B x seq x d_model
 
         # max pooling
-        max_pool_embedding = trans_out.max(dim=1)  # B x d_model
+        max_pool_embedding = trans_out.max(dim=1).values  # B x d_model
+        max_pool_embedding = self.out_linear(max_pool_embedding)
+        # in the official implementation, there is a linear transformation after the max pooling, but
+        # in the paper it is not mentioned
         out = torch.concat((trans_out[:, :self.top_k, :].flatten(1), max_pool_embedding), dim=1)  # B x (top_k + 1) * d_model
         return out
 
 
-        
+if __name__ == "__main__":
+    trans_act = TransActModule()
 
+    # use MovieLen simulated data
+    action_sequence = torch.tensor([[1, 2, 3, 1, 2], [2, 3, 3, 3, 1]], dtype=torch.int)
+    print(action_sequence)
+    item_sequence = torch.ones((2, 5, 128), dtype=torch.float) / 128  # note that the d_item needs to be aligned with the model for now
+    candidate = torch.ones((2, 128), dtype=torch.float) / 128
+
+    with torch.no_grad():
+        out = trans_act(action_sequence=action_sequence,
+                        item_sequence=item_sequence,
+                        candidate=candidate)
+
+        assert out.shape == (2, (16 + 128 * 2) * 4)
