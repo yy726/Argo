@@ -120,6 +120,35 @@ def prepare_movie_len_dataset(history_seq_length: int = 6, eval_ratio: float = 0
            unique_ids 
 
 
+class MovieLenRatingDataset(Dataset):
+    """
+        This dataset only load the ratings file. Primarily this is used for
+        the MF or the two tower model to compute the item side embeddings.
+    """
+    def __init__(self, data):
+        self.users = torch.LongTensor(data['userId'].values)
+        self.movies = torch.LongTensor(data['movieId'].values)
+        self.ratings = torch.FloatTensor(data['rating'].values)
+
+    def __len__(self):
+        return self.users.shape[0]
+
+    def __getitem__(self, index):
+        return self.users[index], self.movies[index], self.ratings[index]
+
+
+def prepare_movie_len_rating_dataset(eval_ratio=0.1):
+    dataset_path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_FULL)
+    ratings = pd.read_csv(os.path.join(dataset_path, "ratings.csv"))
+
+    eval_data = ratings.sample(frac=eval_ratio)
+    train_data = ratings.drop(index=eval_data.index)
+
+    train_data = train_data.reset_index(drop=True)
+    eval_data = eval_data.reset_index(drop=True)
+
+    return MovieLenRatingDataset(train_data), MovieLenRatingDataset(eval_data)
+
 
 if __name__ == "__main__":
     train_dataset, eval_dataset, movie_index = prepare_movie_len_dataset(history_seq_length=8, reindex=True)
@@ -139,4 +168,18 @@ if __name__ == "__main__":
     assert batch[0]['user_id'].dtype == torch.int64
     assert batch[0]['item_id'].dtype == torch.int64
 
-    print("Batch shape test passed...")
+    print("MovieLenDataset batch shape test passed...")
+
+    train_dataset, eval_dataset = prepare_movie_len_rating_dataset()
+
+    loader = DataLoader(train_dataset, batch_size=5, shuffle=True)
+    it = iter(loader)
+    batch = next(it)
+
+    assert len(batch) == 3
+    users, movies, ratings = batch
+    assert len(users) == 5
+    assert len(movies) == 5
+    assert len(ratings) == 5
+
+    print("MovieLenRatingDataset batch shape test passed...")
