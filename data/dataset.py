@@ -137,8 +137,8 @@ class MovieLenRatingDataset(Dataset):
         return self.users[index], self.movies[index], self.ratings[index]
 
 
-def prepare_movie_len_rating_dataset(eval_ratio=0.1):
-    dataset_path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_FULL)
+def prepare_movie_len_rating_dataset(eval_ratio=0.1, dataset_type=DatasetType.MOVIE_LENS_LATEST_FULL):
+    dataset_path = dataset_manager.get_dataset(dataset_type)
     ratings = pd.read_csv(os.path.join(dataset_path, "ratings.csv"))
 
     eval_data = ratings.sample(frac=eval_ratio)

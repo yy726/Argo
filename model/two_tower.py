@@ -51,7 +51,7 @@ class TwoTowerModel(nn.Module):
         item_hidden = self.item_tower(item_embeddings)  # B x hidden_dim
 
         hidden = torch.concat((user_hidden, item_hidden), dim=-1)  # B x 2 * hidden_dim
-        out = self.merge_net(hidden)
+        out = self.merge_net(hidden)  # B x 1
         return out
 
 
