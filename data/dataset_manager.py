@@ -10,16 +10,19 @@ class DatasetType(Enum):
 
     # MovieLens dataset: https://grouplens.org/datasets/movielens/latest/
     MOVIE_LENS_LATEST_SMALL = auto()  # 100k ratings, 3600 tags, 9000 movies, 600 users, updated 9/2018
+    MOVIE_LENS_LATEST_FULL = auto()  # 33M ratings, 2M tags, 86000 movies, 330975 users, updated 9/2018
 
     def get_url(self) -> str:
         urls = {
             DatasetType.MOVIE_LENS_LATEST_SMALL: "https://files.grouplens.org/datasets/movielens/ml-latest-small.zip",
+            DatasetType.MOVIE_LENS_LATEST_FULL: "https://files.grouplens.org/datasets/movielens/ml-latest.zip",
         }
         return urls[self]
     
     def get_name(self) -> str:
         names = {
             DatasetType.MOVIE_LENS_LATEST_SMALL: "ml-latest-small",
+            DatasetType.MOVIE_LENS_LATEST_FULL: "ml-latest",
         }
         return names[self]
 
