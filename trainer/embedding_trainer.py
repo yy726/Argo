@@ -84,8 +84,8 @@ class EmbeddingTrainer:
 
         with torch.no_grad():
             item_ids = torch.LongTensor([i for i in range(self.model.item_cardinality)])
-            item_ids.to(self.device)
+            item_ids = item_ids.to(self.device)
             item_embeddings = self.model.item_embedding(item_ids)
             item_embeddings = self.model.item_tower(item_embeddings)  # num_item x item_dim
 
-        return item_embeddings.numpy()
+        return item_embeddings.cpu().numpy()
