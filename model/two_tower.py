@@ -29,7 +29,7 @@ class TwoTowerModel(nn.Module):
             nn.Linear(self.embedding_dim, 128),
             nn.ReLU(),
             nn.Dropout(0.1),
-            nn.Linear(128, 64),
+            nn.Linear(128, 64),  # this is the actual item embedding dimension that we are outputting
         )
 
         # merge net, combine user and item tower output for final predictions

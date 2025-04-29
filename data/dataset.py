@@ -150,36 +150,130 @@ def prepare_movie_len_rating_dataset(eval_ratio=0.1, dataset_type=DatasetType.MO
     return MovieLenRatingDataset(train_data), MovieLenRatingDataset(eval_data)
 
 
+class MovieLenTransActDataset(Dataset):
+    """
+        This dataset is used for TransAct model, which requires item embeddings to be part
+        of the input; right now we have generated the embeddings and saved in file, we need
+        to join the embeddings with the sequence read from the ratings.csv file
+    """
+
+    # TODO: consider refactor this out as feature function to be reused
+    @classmethod
+    def prepare_data(cls, history_seq_length: int = 6):
+        """
+            This is the core logic of dataset preparation, it group user's sequence based on
+            the chronologic order, and returns the movie id and user ratings which is converted
+            to categorize as action
+
+            For now, we only generate the sequence, the last item in the sequence could be used as
+            the label for training
+        """
+        cached_path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_SMALL)
+
+        ratings = pd.read_csv(os.path.join(cached_path, 'ratings.csv'))
+
+        # convert the ratings to category
+        ratings['rating_cat'], unique_ids = pd.factorize(ratings['rating'])
+
+        # obtain item sequence, the logic is similar to the one in `MovieLenDataset`
+        # how we generate sequence features
+        user_item_sequence = (
+            ratings.groupby('userId')
+            .apply(lambda x: x.sort_values('timestamp').head(history_seq_length)['movieId'].tolist())
+            .reset_index(name="item_sequence")
+            .rename(columns={'userId': 'user_id'})
+        )  # user_id, item_sequence
+
+        user_action_sequence = (
+            ratings.groupby('userId')
+            .apply(lambda x: x.sort_values('timestamp').head(history_seq_length)['rating_cat'].tolist())
+            .reset_index(name='action_sequence')
+            .rename(columns={'userId': 'user_id'})
+        )
+
+        df = user_item_sequence.merge(user_action_sequence, on='user_id')
+
+        return df, unique_ids
+
+    def __init__(self, embedding_store, data):
+        """
+            The item embedding is passed as an object for the dataset to extract the embeddings,
+            this is a type of `lazy compute` pattern; for simplicity, we would directly use
+            `torch.Tensor` here and in the future this could be generalized to other object
+        """
+        super().__init__()
+        self.embedding_store = embedding_store
+        self.data = data
+
+    def __len__(self):
+        return self.data.shape[0]
+
+    def __getitem__(self, index):
+        user_id = self.data.iloc[index]['user_id']
+        item_sequence = self.data.iloc[index]['item_sequence']
+        action_sequence = self.data.iloc[index]['action_sequence']
+        return {
+            "user_id": torch.LongTensor([user_id]),  # 1,
+            "action_sequence": torch.LongTensor(action_sequence),  # seq,
+            "item_sequence": self.embedding_store[item_sequence],  # seq x d_item
+        }
+
+
+def prepare_movie_len_transact_dataset(embedding_store, eval_ratio: float = 0.1):
+    data, unique_ids = MovieLenTransActDataset.prepare_data(history_seq_length=15)
+
+    eval_data = data.sample(frac=eval_ratio)
+    train_data = data.drop(index=eval_data.index)
+
+    train_data = train_data.reset_index(drop=True)
+    eval_data = eval_data.reset_index(drop=True)
+
+    return MovieLenTransActDataset(embedding_store, train_data), \
+        MovieLenTransActDataset(embedding_store, eval_data)
+
+
 if __name__ == "__main__":
-    train_dataset, eval_dataset, movie_index = prepare_movie_len_dataset(history_seq_length=8, reindex=True)
+    # train_dataset, eval_dataset, movie_index = prepare_movie_len_dataset(history_seq_length=8, reindex=True)
 
-    loader = DataLoader(dataset=train_dataset, batch_size=5)
+    # loader = DataLoader(dataset=train_dataset, batch_size=5)
 
+    # it = iter(loader)
+    # batch = next(it)
+
+    # assert batch[0]['user_id'].shape == (5, 1)
+    # assert batch[0]['item_id'].shape == (5, 1)
+    # assert batch[0]['user_history_behavior'].shape == (5, 8)
+
+    # assert batch[1].shape == (5,)
+
+    # # check type of the output
+    # assert batch[0]['user_id'].dtype == torch.int64
+    # assert batch[0]['item_id'].dtype == torch.int64
+
+    # print("MovieLenDataset batch shape test passed...")
+
+    # train_dataset, eval_dataset = prepare_movie_len_rating_dataset()
+
+    # loader = DataLoader(train_dataset, batch_size=5, shuffle=True)
+    # it = iter(loader)
+    # batch = next(it)
+
+    # assert len(batch) == 3
+    # users, movies, ratings = batch
+    # assert len(users) == 5
+    # assert len(movies) == 5
+    # assert len(ratings) == 5
+
+    # print("MovieLenRatingDataset batch shape test passed...")
+
+
+    embedding_store = torch.ones((300000, 64))
+    train_dataset, eval_dataset = prepare_movie_len_transact_dataset(embedding_store)
+
+    loader = DataLoader(train_dataset, batch_size=5)
     it = iter(loader)
     batch = next(it)
 
-    assert batch[0]['user_id'].shape == (5, 1)
-    assert batch[0]['item_id'].shape == (5, 1)
-    assert batch[0]['user_history_behavior'].shape == (5, 8)
-
-    assert batch[1].shape == (5,)
-
-    # check type of the output
-    assert batch[0]['user_id'].dtype == torch.int64
-    assert batch[0]['item_id'].dtype == torch.int64
-
-    print("MovieLenDataset batch shape test passed...")
-
-    train_dataset, eval_dataset = prepare_movie_len_rating_dataset()
-
-    loader = DataLoader(train_dataset, batch_size=5, shuffle=True)
-    it = iter(loader)
-    batch = next(it)
-
-    assert len(batch) == 3
-    users, movies, ratings = batch
-    assert len(users) == 5
-    assert len(movies) == 5
-    assert len(ratings) == 5
-
-    print("MovieLenRatingDataset batch shape test passed...")
+    assert batch['user_id'].shape == (5, 1)
+    assert batch['action_sequence'].shape == (5, 15)
+    assert batch['item_sequence'].shape == (5, 15, 64)

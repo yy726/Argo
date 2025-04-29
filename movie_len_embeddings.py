@@ -1,9 +1,11 @@
+import torch
+
 from data.dataset import prepare_movie_len_rating_dataset, DatasetType
 from model.two_tower import TwoTowerModel
 from trainer.embedding_trainer import EmbeddingTrainer
 
 
-NUM_TRIAL = 1
+NUM_TRIAL = 3
 
 if __name__ == "__main__":
     train_dataset, eval_dataset = prepare_movie_len_rating_dataset(eval_ratio=0.05,
@@ -24,4 +26,4 @@ if __name__ == "__main__":
             best_embeddings = trainer.export()
             print(f"On trial {trial}, found the best loss {loss:.4f}, current best {best_embeddings_loss:.4f}...")
 
-    # TODO: add embedding saving logic
+    torch.save(best_embeddings, "artifacts/movie_embeddings.pt")

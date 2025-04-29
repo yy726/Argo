@@ -1,5 +1,3 @@
-from torch.utils.data import DataLoader
-
 from configs.model import DIN_SMALL_CONFIG
 from data.dataset import prepare_movie_len_dataset
 from model.din import DeepInterestModel
