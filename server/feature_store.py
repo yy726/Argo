@@ -13,10 +13,11 @@ class FeatureName(Enum):
 
 class FeatureStore:
     """
-        This is a component to handle the feature extraction for a given entity.
+    This is a component to handle the feature extraction for a given entity.
 
-        For now we only support the movie len related feature extraction.
+    For now we only support the movie len related feature extraction.
     """
+
     def __init__(self):
         self.store = {}
 
@@ -26,16 +27,16 @@ class FeatureStore:
         # TODO: refactor this into a common feature to be shared with dataset preparation
         cached_path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_SMALL)
 
-        ratings = pd.read_csv(os.path.join(cached_path, 'ratings.csv'))
+        ratings = pd.read_csv(os.path.join(cached_path, "ratings.csv"))
 
         user_history_sequence_feature = (
-            ratings.groupby('userId')
-            .apply(lambda x: x.sort_values('timestamp')['movieId'].tolist())
+            ratings.groupby("userId")
+            .apply(lambda x: x.sort_values("timestamp")["movieId"].tolist())
             .reset_index(name="history_sequence_feature")
-            .rename(columns={'userId': 'user_id'})
+            .rename(columns={"userId": "user_id"})
         )  # user_id, historySequenceFeature
 
-        user_history_sequence_feature = user_history_sequence_feature.set_index('user_id')['history_sequence_feature'].to_dict()
+        user_history_sequence_feature = user_history_sequence_feature.set_index("user_id")["history_sequence_feature"].to_dict()
 
         self.store[FeatureName.USER_HISTORY_SEQUENCE_FEATURE] = user_history_sequence_feature
 
@@ -46,7 +47,6 @@ class FeatureStore:
 if __name__ == "__main__":
     feature_store = FeatureStore()
 
-    user_history_sequence = feature_store.generate_feature(FeatureName.USER_HISTORY_SEQUENCE_FEATURE,
-                                                           1)
+    user_history_sequence = feature_store.generate_feature(FeatureName.USER_HISTORY_SEQUENCE_FEATURE, 1)
     assert user_history_sequence[0] == 1210
     assert user_history_sequence[-1] == 2492

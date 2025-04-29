@@ -19,13 +19,15 @@ if __name__ == "__main__":
     train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 
     for idx, batch in enumerate(train_dataloader):
-        user_id = batch['user_id'].to("cpu")
-        action_sequence = batch['action_sequence'][:, :-1].to("cpu")  # the last item would be used as label in the future
-        item_sequence = batch['item_sequence'][:, :-1, :].to("cpu")
-        candidate = batch['item_sequence'][:, -1, :].to("cpu")
+        user_id = batch["user_id"].to("cpu")
+        action_sequence = batch["action_sequence"][:, :-1].to("cpu")  # the last item would be used as label in the future
+        item_sequence = batch["item_sequence"][:, :-1, :].to("cpu")
+        candidate = batch["item_sequence"][:, -1, :].to("cpu")
 
-        out = transact(action_sequence=action_sequence,
-                       item_sequence=item_sequence,
-                       candidate=candidate)
+        out = transact(
+            action_sequence=action_sequence,
+            item_sequence=item_sequence,
+            candidate=candidate,
+        )
         # total around 17 batch, because the data is grouped on user id, and in small dataset we have about 600 users
         print(f"Current batch id {idx}, current model prediction {out}")

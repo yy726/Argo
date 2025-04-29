@@ -7,18 +7,16 @@ class TwoTowerModel(nn.Module):
         super().__init__()
 
         # TODO: move to model config
-        # here we use user/item to different the 2 towers, which is a common convention in industry 
+        # here we use user/item to different the 2 towers, which is a common convention in industry
         self.embedding_dim = 32
         self.user_cardinality = 3000000
         self.item_cardinality = 3000000
 
         # create embedding lookup table
-        self.user_embedding = nn.Embedding(num_embeddings=self.user_cardinality,
-                                           embedding_dim=self.embedding_dim)
-        self.item_embedding = nn.Embedding(num_embeddings=self.item_cardinality,
-                                           embedding_dim=self.embedding_dim)
-        
-        # local tower, linear projection and non-linear activation 
+        self.user_embedding = nn.Embedding(num_embeddings=self.user_cardinality, embedding_dim=self.embedding_dim)
+        self.item_embedding = nn.Embedding(num_embeddings=self.item_cardinality, embedding_dim=self.embedding_dim)
+
+        # local tower, linear projection and non-linear activation
         self.user_tower = nn.Sequential(
             nn.Linear(self.embedding_dim, 128),
             nn.ReLU(),
@@ -33,16 +31,12 @@ class TwoTowerModel(nn.Module):
         )
 
         # merge net, combine user and item tower output for final predictions
-        self.merge_net = nn.Sequential(
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 1)
-        )
+        self.merge_net = nn.Sequential(nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, 1))
 
     def forward(self, user_ids, item_ids):
         """
-            user_ids, B x 1, LongTensor
-            item_ids, B x 1, LongTensor
+        user_ids, B x 1, LongTensor
+        item_ids, B x 1, LongTensor
         """
         user_embeddings = self.user_embedding(user_ids)  # B x dim
         item_embeddings = self.user_embedding(item_ids)  # B x dim

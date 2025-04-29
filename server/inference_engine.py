@@ -15,17 +15,19 @@ from server.feature_store import FeatureStore, FeatureName
 class RecommendationRequest(BaseModel):
     user_id: int
 
+
 app = FastAPI()
 
 # for now we hard code the model to be used for inference
-checkpoint = torch.load('/tmp/din-movie-len-small.pth', weights_only=False)
+checkpoint = torch.load("/tmp/din-movie-len-small.pth", weights_only=False)
 model = DeepInterestModel(config=DIN_SMALL_CONFIG)
-model.load_state_dict(checkpoint['model_state_dict'])
+model.load_state_dict(checkpoint["model_state_dict"])
 model.eval()
 
 # initialize candidate generation and feature store
 retrieval_engine = RetrievalEngine()
 feature_store = FeatureStore()
+
 
 @app.post("/recommend/")
 async def recommend(request: RecommendationRequest):
@@ -35,12 +37,11 @@ async def recommend(request: RecommendationRequest):
         user_id = request.user_id
 
         # fetch features
-        user_sequence = feature_store.generate_feature(FeatureName.USER_HISTORY_SEQUENCE_FEATURE,
-                                                       user_id)
+        user_sequence = feature_store.generate_feature(FeatureName.USER_HISTORY_SEQUENCE_FEATURE, user_id)
         user_sequence_feature = user_sequence[:8]  # in model training we use sequence length of 8
 
         # model inference
-        # we use a simple approach to predict all candidates within a single batch, there could be 
+        # we use a simple approach to predict all candidates within a single batch, there could be
         # OOM issue, but in the current movie len small dataset, this should not cause issue on modern laptop
         num_candidates = len(candidates)
         data = {
@@ -52,23 +53,19 @@ async def recommend(request: RecommendationRequest):
         }
         with torch.no_grad():
             prediction = model(data)  # B x 1
-        
+
         sorted_scores, sorted_indices = torch.sort(prediction.squeeze(1), descending=True)
         top_k_scores = sorted_scores[:10].tolist()
         top_k_indices = sorted_indices[:10].tolist()
 
         # return topk
-        return {"recommendations": [
-            {
-                "movie_id": idx,
-                "scores": score,
-                "rank": i
-            } for i, (idx, score) in enumerate(zip(top_k_indices, top_k_scores))
-        ]}
+        return {"recommendations": [{"movie_id": idx, "scores": score, "rank": i} for i, (idx, score) in enumerate(zip(top_k_indices, top_k_scores))]}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

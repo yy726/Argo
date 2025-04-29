@@ -15,6 +15,7 @@ Code reference:
     1. https://github.com/pinterest/transformer_user_action/tree/main
 """
 
+
 class TransActModule(nn.Module):
     def __init__(self):
         super().__init__()
@@ -26,9 +27,7 @@ class TransActModule(nn.Module):
         self.top_k = 3
 
         # this is the embedding for action type in the sequences
-        self.action_embedding = nn.Embedding(num_embeddings=16,
-                                             embedding_dim=self.d_action, 
-                                             padding_idx=0)
+        self.action_embedding = nn.Embedding(num_embeddings=16, embedding_dim=self.d_action, padding_idx=0)
         # for now we would reuse the existing encoder layer available in pytorch for simplicity
         # we would use our customized encoder implementation
         d_model = self.d_action + 2 * self.d_item
@@ -51,9 +50,9 @@ class TransActModule(nn.Module):
             candidate: the candidate item embedding to be scored, B x d_item
         """
 
-        action_seq = action_sequence[:, :self.max_seq_len]  # B x seq
+        action_seq = action_sequence[:, : self.max_seq_len]  # B x seq
         action_seq_embedding = self.action_embedding(action_seq + 1)  # B x seq x d_action
-        item_seq_embedding = item_sequence[:, :self.max_seq_len, :]  # B x seq x d_item
+        item_seq_embedding = item_sequence[:, : self.max_seq_len, :]  # B x seq x d_item
 
         # for know we would assume that there is no padding in the input seq (which could be controlled outside)
         padding_mask = action_seq <= 0  # B x seq
@@ -67,15 +66,14 @@ class TransActModule(nn.Module):
         candidate_embedding = candidate.unsqueeze(1).expand(-1, self.max_seq_len, -1)  # B x seq x d_item
         action_item_embedding = torch.concat((action_item_embedding, candidate_embedding), dim=-1)  # B x seq x (d_action + 2 * d_item)
 
-        trans_out = self.encoder(src=action_item_embedding,
-                                 src_key_padding_mask=attn_mask)  # B x seq x d_model
+        trans_out = self.encoder(src=action_item_embedding, src_key_padding_mask=attn_mask)  # B x seq x d_model
 
         # max pooling
         max_pool_embedding = trans_out.max(dim=1).values  # B x d_model
         max_pool_embedding = self.out_linear(max_pool_embedding)
         # in the official implementation, there is a linear transformation after the max pooling, but
         # in the paper it is not mentioned
-        out = torch.concat((trans_out[:, :self.top_k, :].flatten(1), max_pool_embedding), dim=1)  # B x (top_k + 1) * d_model
+        out = torch.concat((trans_out[:, : self.top_k, :].flatten(1), max_pool_embedding), dim=1)  # B x (top_k + 1) * d_model
         return out
 
 
@@ -89,8 +87,10 @@ if __name__ == "__main__":
     candidate = torch.ones((2, 128), dtype=torch.float) / 128
 
     with torch.no_grad():
-        out = trans_act(action_sequence=action_sequence,
-                        item_sequence=item_sequence,
-                        candidate=candidate)
+        out = trans_act(
+            action_sequence=action_sequence,
+            item_sequence=item_sequence,
+            candidate=candidate,
+        )
 
         assert out.shape == (2, (16 + 128 * 2) * 4)

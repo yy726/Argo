@@ -18,7 +18,7 @@ class DatasetType(Enum):
             DatasetType.MOVIE_LENS_LATEST_FULL: "https://files.grouplens.org/datasets/movielens/ml-latest.zip",
         }
         return urls[self]
-    
+
     def get_name(self) -> str:
         names = {
             DatasetType.MOVIE_LENS_LATEST_SMALL: "ml-latest-small",
@@ -29,9 +29,10 @@ class DatasetType(Enum):
 
 class DatasetManager:
     """
-        This is a manager class to handle the dataset on the host, the dataset would
-        be downloaded and cached in the /tmp folder by default
+    This is a manager class to handle the dataset on the host, the dataset would
+    be downloaded and cached in the /tmp folder by default
     """
+
     _instance = None
 
     def __new__(cls, *args, **kwargs):
@@ -39,11 +40,11 @@ class DatasetManager:
             cls._instance = super(DatasetManager, cls).__new__(cls)
             cls._instance._initialized = False
         return cls._instance
-    
+
     def __init__(self, tmp_folder: str = "/tmp"):
         if self._initialized:
             return
-        
+
         if not os.path.exists(tmp_folder):
             os.makedirs(tmp_folder)
 
@@ -66,13 +67,13 @@ class DatasetManager:
         dataset_path = os.path.join(self._tmp_folder, dataset_type.get_name())
         if self._dataset_exists(dataset_path):
             return dataset_path
-        
+
         response = requests.get(dataset_type.get_url())
         if response.status_code == 200:
             with zipfile.ZipFile(io.BytesIO(response.content)) as zip_ref:
                 zip_ref.extractall(self._tmp_folder)
                 logging.info(f"Dataset {dataset_type.get_name()} downloaded")
-        
+
         return dataset_path
 
 
