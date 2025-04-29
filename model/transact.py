@@ -22,11 +22,11 @@ class TransActModule(nn.Module):
         # TODO: move to model config
         self.max_seq_len = 4  # the number of sequence length to use
         self.d_action = 16
-        self.d_item = 128
+        self.d_item = 64
         self.top_k = 3
 
         # this is the embedding for action type in the sequences
-        self.action_embedding = nn.Embedding(num_embeddings=5,
+        self.action_embedding = nn.Embedding(num_embeddings=16,
                                              embedding_dim=self.d_action, 
                                              padding_idx=0)
         # for now we would reuse the existing encoder layer available in pytorch for simplicity
