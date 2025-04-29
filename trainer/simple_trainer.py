@@ -10,10 +10,9 @@ import numpy as np
 from sklearn.metrics import precision_recall_curve, auc
 
 
-
 class SimpleTrainer:
     """
-        A simple trainer, with minimal training loop logic
+    A simple trainer, with minimal training loop logic
     """
 
     def __init__(self, model, train_dataset, eval_dataset):
@@ -55,19 +54,19 @@ class SimpleTrainer:
                 running_loss += loss.item()
 
                 if i % 100 == 99:
-                    print(f'Epoch [{epoch + 1}/{num_epochs}], Step [{i + 1}/{len(self.train_data_loader)}], Loss: {running_loss / 100:.4f}')
+                    print(f"Epoch [{epoch + 1}/{num_epochs}], Step [{i + 1}/{len(self.train_data_loader)}], Loss: {running_loss / 100:.4f}")
                     running_loss = 0.0
-                
+
             self.eval()
-        
+
         print("Simple trainer finished training")
 
     def eval(self):
         """
-            A simple eval function, only support the AUCPR as of now
+        A simple eval function, only support the AUCPR as of now
         """
         print("Start evaluation")
-        
+
         self.model.eval()
         all_targets = []
         all_predictions = []
@@ -77,7 +76,7 @@ class SimpleTrainer:
                 inputs = {key: value.to(self.device) for key, value in inputs.items()}
 
                 # in our DIN model, we have applied sigmoid as the final layer to
-                # covert logits to probs, thus no additional convert is required here 
+                # covert logits to probs, thus no additional convert is required here
                 outputs = self.model(inputs)
 
                 all_predictions.extend(outputs.cpu().numpy())
@@ -92,7 +91,7 @@ class SimpleTrainer:
 
     def save(self, model_name, movie_index, path="/tmp"):
         """
-            A simple function to save pytorch model
+        A simple function to save pytorch model
         """
         if not os.path.exists(path):
             raise ValueError(f"The given path {path} does not exists")
@@ -102,7 +101,7 @@ class SimpleTrainer:
             filename += ".pth"
         elif file_path.suffix != ".pth":
             raise ValueError(f"Invalid extension provided {file_path.suffix}")
-        
+
         checkpoint = {
             "model_state_dict": self.model.state_dict(),
         }
@@ -110,4 +109,3 @@ class SimpleTrainer:
             checkpoint["movie_index"] = movie_index
 
         torch.save(checkpoint, filename)
-        

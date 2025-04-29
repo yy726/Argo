@@ -13,68 +13,69 @@ class MovieLenDataset(Dataset):
     @classmethod
     def prepare_data(cls, history_seq_length: int = 6, reindex=False):
         """
-            This is the core function to process raw MovieLen dataset to generate the
-            training samples, including feature engineering, label generation, movie id reindex, etc
+        This is the core function to process raw MovieLen dataset to generate the
+        training samples, including feature engineering, label generation, movie id reindex, etc
 
-            Return the prepare training data, as well as the movie id index mapping 
+        Return the prepare training data, as well as the movie id index mapping
         """
         cached_path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_SMALL)
 
         # TODO optimization to preprocess data and load on-demand
-        links = pd.read_csv(os.path.join(cached_path, 'links.csv'))
-        movies = pd.read_csv(os.path.join(cached_path, 'movies.csv'))
-        ratings = pd.read_csv(os.path.join(cached_path, 'ratings.csv'))
-        links = pd.read_csv(os.path.join(cached_path, 'links.csv'))
+        links = pd.read_csv(os.path.join(cached_path, "links.csv"))
+        movies = pd.read_csv(os.path.join(cached_path, "movies.csv"))
+        ratings = pd.read_csv(os.path.join(cached_path, "ratings.csv"))
+        links = pd.read_csv(os.path.join(cached_path, "links.csv"))
 
         unique_ids = None
         if reindex:
             # reindex movie id to compact version
             # use factorize to compute new mapping of ids
-            movies['movieId'], unique_ids = pd.factorize(movies['movieId'])
+            movies["movieId"], unique_ids = pd.factorize(movies["movieId"])
             # use the new mapping of ids as categorical to do assignment, then use code to extract the new ids
             # due to `pd.Categorical`, the movieId is converted to int16, need to convert back to int64
-            ratings['movieId'] = pd.Categorical(ratings['movieId'], categories=unique_ids).codes.astype(np.int64)
+            ratings["movieId"] = pd.Categorical(ratings["movieId"], categories=unique_ids).codes.astype(np.int64)
 
         # seq feature generation, simplified version, no padding, the minimal
         # length from the ml-latest is 20, for now we assume that
         # sequence feature length + num positive sample <= 20
         user_history_sequence_feature = (
-            ratings.groupby('userId')
-            .apply(lambda x: x.sort_values('timestamp').head(history_seq_length)['movieId'].tolist())  # for group less than `history_seq_length`, this would return all rows
+            ratings.groupby("userId")
+            .apply(lambda x: x.sort_values("timestamp").head(history_seq_length)["movieId"].tolist())  # for group less than `history_seq_length`, this would return all rows
             .reset_index(name="history_sequence_feature")
-            .rename(columns={'userId': 'user_id'})
+            .rename(columns={"userId": "user_id"})
         )  # user_id, historySequenceFeature
 
         # positive candidate generation, use rating >= 5.0 as positive
         # negative candidate generation, use rating <= 2.0 as negative
         df = (
-            ratings.groupby('userId')
-            .apply(lambda x: x.sort_values('timestamp').iloc[history_seq_length:])  # use sequence that is not part of the sequence feature to prevent label leakage
+            ratings.groupby("userId")
+            .apply(lambda x: x.sort_values("timestamp").iloc[history_seq_length:])  # use sequence that is not part of the sequence feature to prevent label leakage
             .reset_index(drop=True)
         )
 
         positive = (
-            df[df['rating'] >= 5.0].groupby('userId')
-            .apply(lambda x: x.sort_values('timestamp').head(10))
+            df[df["rating"] >= 5.0]
+            .groupby("userId")
+            .apply(lambda x: x.sort_values("timestamp").head(10))
             .reset_index(drop=True)
-            .drop(columns=['rating', 'timestamp'])
-            .rename(columns={'userId': 'user_id', 'movieId': 'movie_id'})
+            .drop(columns=["rating", "timestamp"])
+            .rename(columns={"userId": "user_id", "movieId": "movie_id"})
         )  # user_id, movie_id
-        positive['label'] = 1.0
+        positive["label"] = 1.0
 
         negative = (
-            df[df['rating'] <= 2.0].groupby('userId')
-            .apply(lambda x: x.sort_values('timestamp').head(50))
+            df[df["rating"] <= 2.0]
+            .groupby("userId")
+            .apply(lambda x: x.sort_values("timestamp").head(50))
             .reset_index(drop=True)
-            .drop(columns=['rating', 'timestamp'])
-            .rename(columns={'userId': 'user_id', 'movieId': 'movie_id'})
+            .drop(columns=["rating", "timestamp"])
+            .rename(columns={"userId": "user_id", "movieId": "movie_id"})
         )
-        negative['label'] = 0.0
+        negative["label"] = 0.0
 
         training_data = (
-            pd.concat([positive, negative], axis=0)  # user_id, movie_id, label
-            .merge(user_history_sequence_feature, on='user_id')
-        ).sample(frac=1).reset_index(drop=True)  # shuffle the rows
+            (pd.concat([positive, negative], axis=0).merge(user_history_sequence_feature, on="user_id")).sample(frac=1).reset_index(drop=True)  # user_id, movie_id, label
+        )  # shuffle the rows
 
         return training_data, unique_ids
 
@@ -85,23 +86,23 @@ class MovieLenDataset(Dataset):
 
     def __len__(self):
         return self.data.shape[0]
-    
+
     def __getitem__(self, index):
         feature = {
-            "user_id": torch.tensor([self.data.loc[index]['user_id']]),
-            "item_id": torch.tensor([self.data.loc[index]['movie_id']]),
-            "user_history_behavior": torch.tensor(self.data.loc[index]['history_sequence_feature']),
+            "user_id": torch.tensor([self.data.loc[index]["user_id"]]),
+            "item_id": torch.tensor([self.data.loc[index]["movie_id"]]),
+            "user_history_behavior": torch.tensor(self.data.loc[index]["history_sequence_feature"]),
             "user_history_length": torch.tensor([self.history_seq_length]),
             "dense_features": torch.ones([8]),
         }
-        return feature, torch.tensor(self.data.loc[index]['label'], dtype=torch.float32)
+        return feature, torch.tensor(self.data.loc[index]["label"], dtype=torch.float32)
 
 
 def prepare_movie_len_dataset(history_seq_length: int = 6, eval_ratio: float = 0.2, reindex=False):
     """
-        A helper function to prepare movie len dataset, since the MovieLen dataset is not split
-        before hand into train/val/eval, I use this function to read the entire dataset and do
-        the split of data to avoid potential leakage
+    A helper function to prepare movie len dataset, since the MovieLen dataset is not split
+    before hand into train/val/eval, I use this function to read the entire dataset and do
+    the split of data to avoid potential leakage
     """
     data, unique_ids = MovieLenDataset.prepare_data(history_seq_length=history_seq_length, reindex=reindex)  # this returns all data
 
@@ -111,24 +112,27 @@ def prepare_movie_len_dataset(history_seq_length: int = 6, eval_ratio: float = 0
     train_data = train_data.reset_index(drop=True)
     eval_data = eval_data.reset_index(drop=True)
 
-    return MovieLenDataset(history_seq_length=history_seq_length, 
-                           data=train_data, 
-                           unique_ids=unique_ids), \
-           MovieLenDataset(history_seq_length=history_seq_length,
-                           data=eval_data,
-                           unique_ids=unique_ids), \
-           unique_ids 
+    return (
+        MovieLenDataset(
+            history_seq_length=history_seq_length,
+            data=train_data,
+            unique_ids=unique_ids,
+        ),
+        MovieLenDataset(history_seq_length=history_seq_length, data=eval_data, unique_ids=unique_ids),
+        unique_ids,
+    )
 
 
 class MovieLenRatingDataset(Dataset):
     """
-        This dataset only load the ratings file. Primarily this is used for
-        the MF or the two tower model to compute the item side embeddings.
+    This dataset only load the ratings file. Primarily this is used for
+    the MF or the two tower model to compute the item side embeddings.
     """
+
     def __init__(self, data):
-        self.users = torch.LongTensor(data['userId'].values)
-        self.movies = torch.LongTensor(data['movieId'].values)
-        self.ratings = torch.FloatTensor(data['rating'].values)
+        self.users = torch.LongTensor(data["userId"].values)
+        self.movies = torch.LongTensor(data["movieId"].values)
+        self.ratings = torch.FloatTensor(data["rating"].values)
 
     def __len__(self):
         return self.users.shape[0]
@@ -152,54 +156,54 @@ def prepare_movie_len_rating_dataset(eval_ratio=0.1, dataset_type=DatasetType.MO
 
 class MovieLenTransActDataset(Dataset):
     """
-        This dataset is used for TransAct model, which requires item embeddings to be part
-        of the input; right now we have generated the embeddings and saved in file, we need
-        to join the embeddings with the sequence read from the ratings.csv file
+    This dataset is used for TransAct model, which requires item embeddings to be part
+    of the input; right now we have generated the embeddings and saved in file, we need
+    to join the embeddings with the sequence read from the ratings.csv file
     """
 
     # TODO: consider refactor this out as feature function to be reused
     @classmethod
     def prepare_data(cls, history_seq_length: int = 6):
         """
-            This is the core logic of dataset preparation, it group user's sequence based on
-            the chronologic order, and returns the movie id and user ratings which is converted
-            to categorize as action
+        This is the core logic of dataset preparation, it group user's sequence based on
+        the chronologic order, and returns the movie id and user ratings which is converted
+        to categorize as action
 
-            For now, we only generate the sequence, the last item in the sequence could be used as
-            the label for training
+        For now, we only generate the sequence, the last item in the sequence could be used as
+        the label for training
         """
         cached_path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_SMALL)
 
-        ratings = pd.read_csv(os.path.join(cached_path, 'ratings.csv'))
+        ratings = pd.read_csv(os.path.join(cached_path, "ratings.csv"))
 
         # convert the ratings to category
-        ratings['rating_cat'], unique_ids = pd.factorize(ratings['rating'])
+        ratings["rating_cat"], unique_ids = pd.factorize(ratings["rating"])
 
         # obtain item sequence, the logic is similar to the one in `MovieLenDataset`
         # how we generate sequence features
         user_item_sequence = (
-            ratings.groupby('userId')
-            .apply(lambda x: x.sort_values('timestamp').head(history_seq_length)['movieId'].tolist())
+            ratings.groupby("userId")
+            .apply(lambda x: x.sort_values("timestamp").head(history_seq_length)["movieId"].tolist())
             .reset_index(name="item_sequence")
-            .rename(columns={'userId': 'user_id'})
+            .rename(columns={"userId": "user_id"})
         )  # user_id, item_sequence
 
         user_action_sequence = (
-            ratings.groupby('userId')
-            .apply(lambda x: x.sort_values('timestamp').head(history_seq_length)['rating_cat'].tolist())
-            .reset_index(name='action_sequence')
-            .rename(columns={'userId': 'user_id'})
+            ratings.groupby("userId")
+            .apply(lambda x: x.sort_values("timestamp").head(history_seq_length)["rating_cat"].tolist())
+            .reset_index(name="action_sequence")
+            .rename(columns={"userId": "user_id"})
         )
 
-        df = user_item_sequence.merge(user_action_sequence, on='user_id')
+        df = user_item_sequence.merge(user_action_sequence, on="user_id")
 
         return df, unique_ids
 
     def __init__(self, embedding_store, data):
         """
-            The item embedding is passed as an object for the dataset to extract the embeddings,
-            this is a type of `lazy compute` pattern; for simplicity, we would directly use
-            `torch.Tensor` here and in the future this could be generalized to other object
+        The item embedding is passed as an object for the dataset to extract the embeddings,
+        this is a type of `lazy compute` pattern; for simplicity, we would directly use
+        `torch.Tensor` here and in the future this could be generalized to other object
         """
         super().__init__()
         self.embedding_store = embedding_store
@@ -209,9 +213,9 @@ class MovieLenTransActDataset(Dataset):
         return self.data.shape[0]
 
     def __getitem__(self, index):
-        user_id = self.data.iloc[index]['user_id']
-        item_sequence = self.data.iloc[index]['item_sequence']
-        action_sequence = self.data.iloc[index]['action_sequence']
+        user_id = self.data.iloc[index]["user_id"]
+        item_sequence = self.data.iloc[index]["item_sequence"]
+        action_sequence = self.data.iloc[index]["action_sequence"]
         return {
             "user_id": torch.LongTensor([user_id]),  # 1,
             "action_sequence": torch.LongTensor(action_sequence),  # seq,
@@ -228,8 +232,7 @@ def prepare_movie_len_transact_dataset(embedding_store, eval_ratio: float = 0.1)
     train_data = train_data.reset_index(drop=True)
     eval_data = eval_data.reset_index(drop=True)
 
-    return MovieLenTransActDataset(embedding_store, train_data), \
-        MovieLenTransActDataset(embedding_store, eval_data)
+    return MovieLenTransActDataset(embedding_store, train_data), MovieLenTransActDataset(embedding_store, eval_data)
 
 
 if __name__ == "__main__":
@@ -266,7 +269,6 @@ if __name__ == "__main__":
 
     # print("MovieLenRatingDataset batch shape test passed...")
 
-
     embedding_store = torch.ones((300000, 64))
     train_dataset, eval_dataset = prepare_movie_len_transact_dataset(embedding_store)
 
@@ -274,6 +276,6 @@ if __name__ == "__main__":
     it = iter(loader)
     batch = next(it)
 
-    assert batch['user_id'].shape == (5, 1)
-    assert batch['action_sequence'].shape == (5, 15)
-    assert batch['item_sequence'].shape == (5, 15, 64)
+    assert batch["user_id"].shape == (5, 1)
+    assert batch["action_sequence"].shape == (5, 15)
+    assert batch["item_sequence"].shape == (5, 15, 64)
