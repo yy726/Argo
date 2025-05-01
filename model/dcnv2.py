@@ -30,8 +30,7 @@ class CrossNet(nn.Module):
             nn.Sequential(
                 nn.Linear(128, 128, bias=True),
                 nn.BatchNorm1d(128),
-            )
-        ] for _ in range(num_layers))
+            ) for _ in range(num_layers)])
 
     def forward(self, x0):
         """
@@ -64,8 +63,7 @@ class DeepNet(nn.Module):
                 nn.ReLU(),
                 nn.BatchNorm1d(128),
                 nn.Dropout(),
-            )
-        ])
+            ) for _ in range(num_layers)])
 
     def forward(self, x):
         for layer in self.layers:
@@ -78,9 +76,54 @@ class DCNV2(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self):
-        pass
+        # embedding layer of the category features, for each
+        # feature we would have a lookup table to simulate one-hot-encoding
+        # TODO, provide a better implementation here, for now it is
+        # just faked feature, but this should be input from model config
+        self.embeddings = {
+            "feature_a": nn.Embedding(256, 16),
+            "feature_b": nn.Embedding(1024, 64),
+            "feature_c": nn.Embedding(1024, 16),
+            "feature_d": nn.Embedding(256, 32)
+        }
+
+        self.cross_net = CrossNet()
+        self.deep_net = DeepNet()
+
+        # we create a final prediction head to generate the probability, this
+        # depends on the hidden dimension of cross net and deep net, as well as
+        # the mode how these 2 part is combined
+        self.head = nn.Sequential(
+            nn.Linear(128 + 128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, features):
+        emb = []
+        for k, v in features.items():
+            emb.append(self.embeddings[k](v))
+        x = torch.concat(emb, dim=-1)  # we concat all embeddings together
+
+        cross_out = self.cross_net(x)  # B x hidden
+        deep_out = self.deep_net(x)  # B x hidden
+
+        # only implement the concat mode as of now
+        hidden = torch.concat((cross_out, deep_out), dim=-1)
+        out = self.head(hidden)
+        return out
 
 
 if __name__ == "__main__":
-    pass
+    dcnv2 = DCNV2()
+
+    features = {
+        "feature_a": torch.LongTensor([1, 2, 3]),  # 3,
+        "feature_b": torch.LongTensor([100, 200, 300]),
+        "feature_c": torch.LongTensor([1001, 1002, 1003]),
+        "feature_d": torch.LongTensor([11, 21, 31])
+    }
+
+    out = dcnv2(features)
+    print(out)
