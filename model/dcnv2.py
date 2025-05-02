@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+from configs.model import DCNv2Config
+
 """
 This is a trial to implement the DCN v2 module in the paper
 
@@ -23,13 +25,13 @@ class CrossNet(nn.Module):
         interactions.
     """
 
-    def __init__(self, num_layers: int = 3):
+    def __init__(self, hidden_dim, num_layers: int = 3):
         super().__init__()
         # create the layers via the sequential
         self.layers = nn.ModuleList([
             nn.Sequential(
-                nn.Linear(128, 128, bias=True),
-                nn.BatchNorm1d(128),
+                nn.Linear(hidden_dim, hidden_dim, bias=True),
+                nn.BatchNorm1d(hidden_dim),
             ) for _ in range(num_layers)])
 
     def forward(self, x0):
@@ -54,16 +56,18 @@ class CrossNet(nn.Module):
 class DeepNet(nn.Module):
     """
         DeepNet is a regular MLP with non linear activations
+
+        hidden_dims: a list of hidden dimensions for the deep net linear layers
     """
-    def __init__(self, num_layers: int = 3):
+    def __init__(self, hidden_dims):
         super().__init__()
         self.layers = nn.ModuleList([
             nn.Sequential(
-                nn.Linear(128, 128),
+                nn.Linear(hidden_dims[i], hidden_dims[i+1]),
                 nn.ReLU(),
-                nn.BatchNorm1d(128),
+                nn.BatchNorm1d(hidden_dims[i+1]),
                 nn.Dropout(),
-            ) for _ in range(num_layers)])
+            ) for i in range(len(hidden_dims) - 1)])
 
     def forward(self, x):
         for layer in self.layers:
@@ -73,30 +77,29 @@ class DeepNet(nn.Module):
 
 class DCNV2(nn.Module):
 
-    def __init__(self):
+    def __init__(self, config: DCNv2Config):
         super().__init__()
 
         # embedding layer of the category features, for each
         # feature we would have a lookup table to simulate one-hot-encoding
-        # TODO, provide a better implementation here, for now it is
-        # just faked feature, but this should be input from model config
-        self.embeddings = {
-            "feature_a": nn.Embedding(256, 16),
-            "feature_b": nn.Embedding(1024, 64),
-            "feature_c": nn.Embedding(1024, 16),
-            "feature_d": nn.Embedding(256, 32)
-        }
+        # TODO: need to make the embedding layer optional to compliant with TransAct ver
+        input_dim = 0
+        self.embeddings = {}
+        for feature_name, (num_embedding, dim) in config.feature_config.items():
+            self.embeddings[feature_name] = nn.Embedding(num_embedding, dim)
+            input_dim += dim
 
-        self.cross_net = CrossNet()
-        self.deep_net = DeepNet()
+        print(f"Final input dim is {input_dim}")
+        self.cross_net = CrossNet(input_dim, config.num_cross_layers)
+        self.deep_net = DeepNet([input_dim] + config.deep_net_hidden_dims)
 
         # we create a final prediction head to generate the probability, this
         # depends on the hidden dimension of cross net and deep net, as well as
         # the mode how these 2 part is combined
         self.head = nn.Sequential(
-            nn.Linear(128 + 128, 64),
+            nn.Linear(input_dim + config.deep_net_hidden_dims[-1], config.head_hidden_dim),
             nn.ReLU(),
-            nn.Linear(64, 1),
+            nn.Linear(config.head_hidden_dim, 1),
             nn.Sigmoid()
         )
 
@@ -116,7 +119,20 @@ class DCNV2(nn.Module):
 
 
 if __name__ == "__main__":
-    dcnv2 = DCNV2()
+
+    dcnv2_config = DCNv2Config(
+        feature_config={
+            "feature_a": (256, 16),
+            "feature_b": (1024, 64),
+            "feature_c": (1024, 16),
+            "feature_d": (256, 32)
+        },
+        num_cross_layers=3,
+        deep_net_hidden_dims=[128, 64, 32],
+        head_hidden_dim=128,
+    )
+
+    dcnv2 = DCNV2(dcnv2_config)
 
     features = {
         "feature_a": torch.LongTensor([1, 2, 3]),  # 3,
