@@ -1,6 +1,13 @@
 import torch
 import torch.nn as nn
 
+from configs.model import (
+    DCNv2Config,
+    TransActModuleConfig,
+    TransActModelConfig,
+)
+from model.dcnv2 import DCNV2
+
 """
 This is a trial to re-implement the model architecture in paper
 
@@ -17,27 +24,29 @@ Code reference:
 
 
 class TransActModule(nn.Module):
-    def __init__(self):
+    def __init__(self, config: TransActModuleConfig):
         super().__init__()
 
-        # TODO: move to model config
-        self.max_seq_len = 4  # the number of sequence length to use
-        self.d_action = 16
-        self.d_item = 64
-        self.top_k = 3
+        self.max_seq_len = config.max_seq_len  # the number of sequence length to use
+        self.d_action = config.action_emb_dim
+        self.d_item = config.item_emb_dim
+        self.top_k = config.top_k
 
         # this is the embedding for action type in the sequences
-        self.action_embedding = nn.Embedding(num_embeddings=16, embedding_dim=self.d_action, padding_idx=0)
+        self.action_embedding = nn.Embedding(num_embeddings=config.num_action,
+                                             embedding_dim=self.d_action,
+                                             padding_idx=0)
         # for now we would reuse the existing encoder layer available in pytorch for simplicity
         # we would use our customized encoder implementation
         d_model = self.d_action + 2 * self.d_item
         self.encoding_layer = nn.TransformerEncoderLayer(
             d_model=d_model,
-            nhead=1,
-            dim_feedforward=1024,
+            nhead=config.transformer_num_head,
+            dim_feedforward=config.transformer_hidden_dim,
             batch_first=True,  # this makes sure it is B x seq x dim
         )
-        self.encoder = nn.TransformerEncoder(encoder_layer=self.encoding_layer, num_layers=2)
+        self.encoder = nn.TransformerEncoder(encoder_layer=self.encoding_layer,
+                                             num_layers=config.num_transformer_block)
         self.out_linear = nn.Linear(d_model, d_model)
 
     def forward(self, action_sequence, item_sequence, candidate):
@@ -78,13 +87,25 @@ class TransActModule(nn.Module):
 
 
 if __name__ == "__main__":
-    trans_act = TransActModule()
+
+    transact_module_config = TransActModuleConfig(
+        max_seq_len=4,
+        action_emb_dim=16,
+        item_emb_dim=64,
+        num_action=16,
+        top_k=3,
+        transformer_num_head=1,
+        transformer_hidden_dim=1024,
+        num_transformer_block=2,
+    )
+
+    trans_act = TransActModule(transact_module_config)
 
     # use MovieLen simulated data
     action_sequence = torch.tensor([[1, 2, 3, 1, 2], [2, 3, 3, 3, 1]], dtype=torch.int)
     print(action_sequence)
-    item_sequence = torch.ones((2, 5, 128), dtype=torch.float) / 128  # note that the d_item needs to be aligned with the model for now
-    candidate = torch.ones((2, 128), dtype=torch.float) / 128
+    item_sequence = torch.ones((2, 5, 64), dtype=torch.float) / 64  # note that the d_item needs to be aligned with the model for now
+    candidate = torch.ones((2, 64), dtype=torch.float) / 64
 
     with torch.no_grad():
         out = trans_act(
@@ -93,4 +114,4 @@ if __name__ == "__main__":
             candidate=candidate,
         )
 
-        assert out.shape == (2, (16 + 128 * 2) * 4)
+        assert out.shape == (2, (16 + 64 * 2) * 4)
