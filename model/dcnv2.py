@@ -82,12 +82,14 @@ class DCNV2(nn.Module):
 
         # embedding layer of the category features, for each
         # feature we would have a lookup table to simulate one-hot-encoding
-        # TODO: need to make the embedding layer optional to compliant with TransAct ver
-        input_dim = 0
         self.embeddings = {}
-        for feature_name, (num_embedding, dim) in config.feature_config.items():
-            self.embeddings[feature_name] = nn.Embedding(num_embedding, dim)
-            input_dim += dim
+        if config.feature_config:
+            input_dim = 0
+            for feature_name, (num_embedding, dim) in config.feature_config.items():
+                self.embeddings[feature_name] = nn.Embedding(num_embedding, dim)
+                input_dim += dim
+        else:
+            input_dim = config.input_dim
 
         print(f"Final input dim is {input_dim}")
         self.cross_net = CrossNet(input_dim, config.num_cross_layers)
@@ -104,10 +106,13 @@ class DCNV2(nn.Module):
         )
 
     def forward(self, features):
-        emb = []
-        for k, v in features.items():
-            emb.append(self.embeddings[k](v))
-        x = torch.concat(emb, dim=-1)  # we concat all embeddings together
+        if self.embeddings:
+            emb = []
+            for k, v in features.items():
+                emb.append(self.embeddings[k](v))
+            x = torch.concat(emb, dim=-1)  # we concat all embeddings together
+        else:
+            x = features
 
         cross_out = self.cross_net(x)  # B x hidden
         deep_out = self.deep_net(x)  # B x hidden

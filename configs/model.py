@@ -44,6 +44,12 @@ class TransActModuleConfig:
     transformer_hidden_dim: int  # hidden dimension of transformer block
     num_transformer_block: int  # number of transformer block layers
 
+    def transact_out_dim(self):
+        """
+            A helper function to return the output dimension of transact module
+        """
+        return (self.top_k + 1) * (self.action_emb_dim + 2 * self.item_emb_dim)
+
 
 @dataclass
 class TransActModelConfig:
