@@ -6,6 +6,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 
 from data.dataset_manager import DatasetType, dataset_manager
+from feature.movie_len_features import MovieLenFeatureStore
 
 
 class MovieLenDataset(Dataset):
@@ -38,12 +39,11 @@ class MovieLenDataset(Dataset):
         # seq feature generation, simplified version, no padding, the minimal
         # length from the ml-latest is 20, for now we assume that
         # sequence feature length + num positive sample <= 20
-        user_history_sequence_feature = (
-            ratings.groupby("userId")
-            .apply(lambda x: x.sort_values("timestamp").head(history_seq_length)["movieId"].tolist())  # for group less than `history_seq_length`, this would return all rows
-            .reset_index(name="history_sequence_feature")
-            .rename(columns={"userId": "user_id"})
-        )  # user_id, historySequenceFeature
+        user_history_sequence_feature = MovieLenFeatureStore.fetch_item_sequence(
+            ratings=ratings, seq_length=history_seq_length
+        ).rename(
+            columns={"item_sequence": "history_sequence_feature"}
+        )  # user_id, history_sequence_feature
 
         # positive candidate generation, use rating >= 5.0 as positive
         # negative candidate generation, use rating <= 2.0 as negative
@@ -176,23 +176,14 @@ class MovieLenTransActDataset(Dataset):
 
         ratings = pd.read_csv(os.path.join(cached_path, "ratings.csv"))
 
-        # convert the ratings to category
-        ratings["rating_cat"], unique_ids = pd.factorize(ratings["rating"])
-
         # obtain item sequence, the logic is similar to the one in `MovieLenDataset`
         # how we generate sequence features
-        user_item_sequence = (
-            ratings.groupby("userId")
-            .apply(lambda x: x.sort_values("timestamp").head(history_seq_length)["movieId"].tolist())
-            .reset_index(name="item_sequence")
-            .rename(columns={"userId": "user_id"})
-        )  # user_id, item_sequence
+        user_item_sequence = MovieLenFeatureStore.fetch_item_sequence(
+            ratings=ratings, seq_length=history_seq_length
+        ) # user_id, item_sequence
 
-        user_action_sequence = (
-            ratings.groupby("userId")
-            .apply(lambda x: x.sort_values("timestamp").head(history_seq_length)["rating_cat"].tolist())
-            .reset_index(name="action_sequence")
-            .rename(columns={"userId": "user_id"})
+        user_action_sequence, unique_ids = MovieLenFeatureStore.fetch_action_sequence(
+            ratings=ratings, seq_length=history_seq_length
         )
 
         df = user_item_sequence.merge(user_action_sequence, on="user_id")
@@ -279,3 +270,5 @@ if __name__ == "__main__":
     assert batch["user_id"].shape == (5, 1)
     assert batch["action_sequence"].shape == (5, 15)
     assert batch["item_sequence"].shape == (5, 15, 64)
+
+    print("MovieLenTransActDataset batch shape test passed...")
