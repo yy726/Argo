@@ -33,9 +33,7 @@ class TransActModule(nn.Module):
         self.top_k = config.top_k
 
         # this is the embedding for action type in the sequences
-        self.action_embedding = nn.Embedding(num_embeddings=config.num_action,
-                                             embedding_dim=self.d_action,
-                                             padding_idx=0)
+        self.action_embedding = nn.Embedding(num_embeddings=config.num_action, embedding_dim=self.d_action, padding_idx=0)
         # for now we would reuse the existing encoder layer available in pytorch for simplicity
         # we would use our customized encoder implementation
         d_model = self.d_action + 2 * self.d_item
@@ -45,8 +43,7 @@ class TransActModule(nn.Module):
             dim_feedforward=config.transformer_hidden_dim,
             batch_first=True,  # this makes sure it is B x seq x dim
         )
-        self.encoder = nn.TransformerEncoder(encoder_layer=self.encoding_layer,
-                                             num_layers=config.num_transformer_block)
+        self.encoder = nn.TransformerEncoder(encoder_layer=self.encoding_layer, num_layers=config.num_transformer_block)
         self.out_linear = nn.Linear(d_model, d_model)
 
     def forward(self, action_sequence, item_sequence, candidate):
@@ -88,10 +85,10 @@ class TransActModule(nn.Module):
 
 class TransAct(nn.Module):
     """
-        This is the main model of transact follow the architecture of the paper.
+    This is the main model of transact follow the architecture of the paper.
 
-        We would simplify the PinnerFormer part and directly use the raw features
-        as input.
+    We would simplify the PinnerFormer part and directly use the raw features
+    as input.
     """
 
     def __init__(self, config: TransActModelConfig):
@@ -100,30 +97,28 @@ class TransAct(nn.Module):
         self.transact_module = TransActModule(config.transact_module_config)
         self.dcnv2 = DCNV2(config.dcnv2_config)
 
-        self.user_embedding = nn.Embedding(num_embeddings=10000,
-                                           embedding_dim=32)
-        self.genre_embedding = nn.Embedding(num_embeddings=32,
-                                            embedding_dim=32)
+        self.user_embedding = nn.Embedding(num_embeddings=10000, embedding_dim=32)
+        self.genre_embedding = nn.Embedding(num_embeddings=32, embedding_dim=32)
 
     def forward(self, features):
         """
-            features: dict[str, tensor], represent the input in a dict format to simplify
-            the logic here thought might not most efficient
+        features: dict[str, tensor], represent the input in a dict format to simplify
+        the logic here thought might not most efficient
         """
         # sequence input for transact module
-        action_sequence = features['action_sequence']
-        item_sequence = features['item_sequence']
-        candidate = features['candidate']
+        action_sequence = features["action_sequence"]
+        item_sequence = features["item_sequence"]
+        candidate = features["candidate"]
 
         # sparse feature
-        user_id = features['user_id']  # B,
+        user_id = features["user_id"]  # B,
         # we use fixed length of number of genres here for simplicity
         # TODO replace with varlen impl
-        candidate_genres = features['candidate_genres']  # B x num_gender
-        user_viewed_genres = features['user_viewed_genres']  # B x num_gender
-        
+        candidate_genres = features["candidate_genres"]  # B x num_gender
+        user_viewed_genres = features["user_viewed_genres"]  # B x num_gender
+
         # dense feature
-        num_movies_viewed = features['num_movies_viewed']  # B,
+        num_movies_viewed = features["num_movies_viewed"]  # B,
 
         transact_out = self.transact_module(action_sequence, item_sequence, candidate)  # B x trans_dim
         user_emb = self.user_embedding(user_id)  # B x user_emb_dim
@@ -135,8 +130,7 @@ class TransAct(nn.Module):
         # Now candidate_genre_emb_pooled is B x emb_dim
         user_viewed_genre_emb = self.genre_embedding(user_viewed_genres)  # B x num_genres x emb_dim
         user_viewed_mask = (user_viewed_genres != 0).unsqueeze(-1)  # B x num_genres x 1
-        user_viewed_genre_emb_pooled = (user_viewed_genre_emb * user_viewed_mask).sum(dim=1) / \
-            user_viewed_mask.sum(dim=1).clamp(min=1)
+        user_viewed_genre_emb_pooled = (user_viewed_genre_emb * user_viewed_mask).sum(dim=1) / user_viewed_mask.sum(dim=1).clamp(min=1)
 
         print("transact_out shape:", transact_out.shape)
         print("user_emb shape:", user_emb.shape)
@@ -144,9 +138,8 @@ class TransAct(nn.Module):
         print("user_viewed_genre_emb_pooled shape:", user_viewed_genre_emb_pooled.shape)
         print("num_movies_viewed shape:", num_movies_viewed.shape)
 
-        dcnv2_in = torch.concat(
-            (transact_out, user_emb, candidate_genre_emb_pooled, user_viewed_genre_emb_pooled, num_movies_viewed), dim=1)
-        
+        dcnv2_in = torch.concat((transact_out, user_emb, candidate_genre_emb_pooled, user_viewed_genre_emb_pooled, num_movies_viewed), dim=1)
+
         out = self.dcnv2(dcnv2_in)
         return out
 
@@ -188,7 +181,7 @@ if __name__ == "__main__":
         "user_viewed_genres": torch.tensor([[1], [2]], dtype=torch.int),
         "action_sequence": torch.tensor([[1, 2, 3, 1, 2], [2, 3, 3, 3, 1]], dtype=torch.int),
         "item_sequence": torch.ones((2, 5, 64), dtype=torch.float) / 64,
-        "candidate": torch.ones((2, 64), dtype=torch.float) / 64
+        "candidate": torch.ones((2, 64), dtype=torch.float) / 64,
     }
 
     # trans_act = TransActModule(transact_module_config)
