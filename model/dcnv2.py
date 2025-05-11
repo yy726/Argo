@@ -21,33 +21,37 @@ Code reference:
 
 class CrossNet(nn.Module):
     """
-        CrossNet performs the feature crossing to capture the higher order feature
-        interactions.
+    CrossNet performs the feature crossing to capture the higher order feature
+    interactions.
     """
 
     def __init__(self, hidden_dim, num_layers: int = 3):
         super().__init__()
         # create the layers via the sequential
-        self.layers = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(hidden_dim, hidden_dim, bias=True),
-                nn.BatchNorm1d(hidden_dim),
-            ) for _ in range(num_layers)])
+        self.layers = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.Linear(hidden_dim, hidden_dim, bias=True),
+                    nn.BatchNorm1d(hidden_dim),
+                )
+                for _ in range(num_layers)
+            ]
+        )
 
     def forward(self, x0):
         """
-            x0: B x D
+        x0: B x D
 
-            In the original feature, x0 is the output of concat of the dense vector
-            after the embedding lookup. This support varlen format of the embedding
-            dimension for each categorical features. In some impl (e.g. ref 1), the
-            x0 is represented as B x seq x D, where the batch norm need some change
-            to be integrated with a transpose layer
+        In the original feature, x0 is the output of concat of the dense vector
+        after the embedding lookup. This support varlen format of the embedding
+        dimension for each categorical features. In some impl (e.g. ref 1), the
+        x0 is represented as B x seq x D, where the batch norm need some change
+        to be integrated with a transpose layer
         """
         x = x0
         # This is fine but might not very efficient, Pytorch would generate temporary
         # activation of x for the auto differential graph computation to compute the
-        # gradient correctly 
+        # gradient correctly
         for layer in self.layers:
             x = layer(x) * x0 + x
         return x
@@ -55,19 +59,24 @@ class CrossNet(nn.Module):
 
 class DeepNet(nn.Module):
     """
-        DeepNet is a regular MLP with non linear activations
+    DeepNet is a regular MLP with non linear activations
 
-        hidden_dims: a list of hidden dimensions for the deep net linear layers
+    hidden_dims: a list of hidden dimensions for the deep net linear layers
     """
+
     def __init__(self, hidden_dims):
         super().__init__()
-        self.layers = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(hidden_dims[i], hidden_dims[i+1]),
-                nn.ReLU(),
-                nn.BatchNorm1d(hidden_dims[i+1]),
-                nn.Dropout(),
-            ) for i in range(len(hidden_dims) - 1)])
+        self.layers = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.Linear(hidden_dims[i], hidden_dims[i + 1]),
+                    nn.ReLU(),
+                    nn.BatchNorm1d(hidden_dims[i + 1]),
+                    nn.Dropout(),
+                )
+                for i in range(len(hidden_dims) - 1)
+            ]
+        )
 
     def forward(self, x):
         for layer in self.layers:
@@ -98,12 +107,7 @@ class DCNV2(nn.Module):
         # we create a final prediction head to generate the probability, this
         # depends on the hidden dimension of cross net and deep net, as well as
         # the mode how these 2 part is combined
-        self.head = nn.Sequential(
-            nn.Linear(input_dim + config.deep_net_hidden_dims[-1], config.head_hidden_dim),
-            nn.ReLU(),
-            nn.Linear(config.head_hidden_dim, 1),
-            nn.Sigmoid()
-        )
+        self.head = nn.Sequential(nn.Linear(input_dim + config.deep_net_hidden_dims[-1], config.head_hidden_dim), nn.ReLU(), nn.Linear(config.head_hidden_dim, 1), nn.Sigmoid())
 
     def forward(self, features):
         if self.embeddings:
@@ -126,12 +130,7 @@ class DCNV2(nn.Module):
 if __name__ == "__main__":
 
     dcnv2_config = DCNv2Config(
-        feature_config={
-            "feature_a": (256, 16),
-            "feature_b": (1024, 64),
-            "feature_c": (1024, 16),
-            "feature_d": (256, 32)
-        },
+        feature_config={"feature_a": (256, 16), "feature_b": (1024, 64), "feature_c": (1024, 16), "feature_d": (256, 32)},
         num_cross_layers=3,
         deep_net_hidden_dims=[128, 64, 32],
         head_hidden_dim=128,
@@ -143,7 +142,7 @@ if __name__ == "__main__":
         "feature_a": torch.LongTensor([1, 2, 3]),  # 3,
         "feature_b": torch.LongTensor([100, 200, 300]),
         "feature_c": torch.LongTensor([1001, 1002, 1003]),
-        "feature_d": torch.LongTensor([11, 21, 31])
+        "feature_d": torch.LongTensor([11, 21, 31]),
     }
 
     out = dcnv2(features)

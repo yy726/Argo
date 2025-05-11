@@ -46,7 +46,7 @@ class TransActModuleConfig:
 
     def transact_out_dim(self):
         """
-            A helper function to return the output dimension of transact module
+        A helper function to return the output dimension of transact module
         """
         return (self.top_k + 1) * (self.action_emb_dim + 2 * self.item_emb_dim)
 

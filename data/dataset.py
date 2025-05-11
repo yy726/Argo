@@ -6,6 +6,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 
 from data.dataset_manager import DatasetType, dataset_manager
+from feature.movie_len_features import MovieLenFeatureStore
 
 
 class MovieLenDataset(Dataset):
@@ -38,12 +39,9 @@ class MovieLenDataset(Dataset):
         # seq feature generation, simplified version, no padding, the minimal
         # length from the ml-latest is 20, for now we assume that
         # sequence feature length + num positive sample <= 20
-        user_history_sequence_feature = (
-            ratings.groupby("userId")
-            .apply(lambda x: x.sort_values("timestamp").head(history_seq_length)["movieId"].tolist())  # for group less than `history_seq_length`, this would return all rows
-            .reset_index(name="history_sequence_feature")
-            .rename(columns={"userId": "user_id"})
-        )  # user_id, historySequenceFeature
+        user_history_sequence_feature = MovieLenFeatureStore.fetch_item_sequence(ratings=ratings, seq_length=history_seq_length).rename(
+            columns={"item_sequence": "history_sequence_feature"}
+        )  # user_id, history_sequence_feature
 
         # positive candidate generation, use rating >= 5.0 as positive
         # negative candidate generation, use rating <= 2.0 as negative
@@ -163,7 +161,7 @@ class MovieLenTransActDataset(Dataset):
 
     # TODO: consider refactor this out as feature function to be reused
     @classmethod
-    def prepare_data(cls, history_seq_length: int = 6):
+    def prepare_data(cls, history_seq_length: int = 6, max_num_genres: int = 5):
         """
         This is the core logic of dataset preparation, it group user's sequence based on
         the chronologic order, and returns the movie id and user ratings which is converted
@@ -175,29 +173,53 @@ class MovieLenTransActDataset(Dataset):
         cached_path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_SMALL)
 
         ratings = pd.read_csv(os.path.join(cached_path, "ratings.csv"))
+        movies = pd.read_csv(os.path.join(cached_path, "movies.csv"))
 
-        # convert the ratings to category
-        ratings["rating_cat"], unique_ids = pd.factorize(ratings["rating"])
+        feature_store = MovieLenFeatureStore(ratings=ratings, movies=movies, seq_length=history_seq_length)
 
-        # obtain item sequence, the logic is similar to the one in `MovieLenDataset`
-        # how we generate sequence features
-        user_item_sequence = (
-            ratings.groupby("userId")
-            .apply(lambda x: x.sort_values("timestamp").head(history_seq_length)["movieId"].tolist())
-            .reset_index(name="item_sequence")
-            .rename(columns={"userId": "user_id"})
-        )  # user_id, item_sequence
+        # obtain item sequence, use the [0:history_seq_length-1] sequence as the input and the last item as
+        # candidate and action as label
+        # TODO: find more efficient approach instead of making a whole copy
+        user_item_sequence = feature_store.item_sequence.copy()  # userId, item_sequence
+        user_item_sequence["item_sequence"] = user_item_sequence["item_sequence"].apply(lambda x: x[: history_seq_length - 1])
+        user_action_sequence = feature_store.action_sequence.copy()  # userId, action_sequence
+        user_action_sequence["action_sequence"] = user_action_sequence["action_sequence"].apply(lambda x: x[: history_seq_length - 1])
 
-        user_action_sequence = (
-            ratings.groupby("userId")
-            .apply(lambda x: x.sort_values("timestamp").head(history_seq_length)["rating_cat"].tolist())
-            .reset_index(name="action_sequence")
-            .rename(columns={"userId": "user_id"})
+        candidate = feature_store.item_sequence.copy()
+        candidate["item_sequence"] = candidate["item_sequence"].apply(lambda x: x[history_seq_length - 1])
+        candidate = candidate.rename(columns={"item_sequence": "candidate_item"})
+        label = feature_store.action_sequence.copy()
+        label["action_sequence"] = label["action_sequence"].apply(lambda x: x[history_seq_length - 1])
+        label = label.rename(columns={"action_sequence": "label"})
+
+        # for genre feature, it is essentially a var-length feature but for input we need to have fix length as of now,
+        # here we padding 0 for list
+        # TODO, support var-length sparse ids
+        def padding(x):
+            """
+            padding 0 to the sequence and bump the original values with 1 to compensate for the 0 padding
+            """
+            if len(x) >= max_num_genres:
+                return [elem + 1 for elem in x[:max_num_genres]]
+            return x + [0] * (max_num_genres - len(x))
+
+        user_viewed_genres = feature_store.user_viewed_genres[["userId", "sorted_genres"]].copy()
+        user_viewed_genres["sorted_genres"] = user_viewed_genres["sorted_genres"].apply(lambda x: padding(x))
+
+        # retrieve *document* side feature
+        candidate = candidate.merge(feature_store.movie_genres, how="left", left_on="candidate_item", right_on="movieId")
+        candidate["genres"] = candidate["genres"].apply(lambda x: padding(x))
+
+        # merge all features together as a single dataframe
+        df = (
+            user_item_sequence.merge(user_action_sequence, on="userId")
+            .merge(candidate, on="userId")
+            .merge(label, on="userId")
+            .merge(feature_store.user_num_viewed_movies, on="userId")
+            .merge(user_viewed_genres, on="userId")
         )
 
-        df = user_item_sequence.merge(user_action_sequence, on="user_id")
-
-        return df, unique_ids
+        return df, feature_store.unique_ids
 
     def __init__(self, embedding_store, data):
         """
@@ -213,13 +235,21 @@ class MovieLenTransActDataset(Dataset):
         return self.data.shape[0]
 
     def __getitem__(self, index):
-        user_id = self.data.iloc[index]["user_id"]
+        user_id = self.data.iloc[index]["userId"]
         item_sequence = self.data.iloc[index]["item_sequence"]
         action_sequence = self.data.iloc[index]["action_sequence"]
+        candidate_item = self.data.iloc[index]["candidate_item"]
+        user_viewed_genres = self.data.iloc[index]["sorted_genres"]
+        user_num_viewed_movies = self.data.iloc[index]["num_viewed_movies"]
+        candidate_genres = self.data.iloc[index]["genres"]
         return {
             "user_id": torch.LongTensor([user_id]),  # 1,
             "action_sequence": torch.LongTensor(action_sequence),  # seq,
             "item_sequence": self.embedding_store[item_sequence],  # seq x d_item
+            "candidate": torch.LongTensor([candidate_item]),  # 1
+            "user_viewed_genres": torch.LongTensor(user_viewed_genres),  # num_genres
+            "user_num_viewed_movies": torch.tensor([user_num_viewed_movies]),  # 1
+            "candidate_genres": torch.LongTensor(candidate_genres),  # num_genres
         }
 
 
@@ -277,5 +307,11 @@ if __name__ == "__main__":
     batch = next(it)
 
     assert batch["user_id"].shape == (5, 1)
-    assert batch["action_sequence"].shape == (5, 15)
-    assert batch["item_sequence"].shape == (5, 15, 64)
+    assert batch["action_sequence"].shape == (5, 14)
+    assert batch["item_sequence"].shape == (5, 14, 64)
+    assert batch["candidate"].shape == (5, 1)
+    assert batch["user_viewed_genres"].shape == (5, 5)
+    assert batch["user_num_viewed_movies"].shape == (5, 1)
+    assert batch["candidate_genres"].shape == (5, 5)
+
+    print("MovieLenTransActDataset batch shape test passed...")
