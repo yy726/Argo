@@ -118,10 +118,10 @@ class TransAct(nn.Module):
         user_viewed_genres = features["user_viewed_genres"]  # B x num_gender
 
         # dense feature
-        num_movies_viewed = features["num_movies_viewed"]  # B,
+        num_movies_viewed = features["user_num_viewed_movies"]  # B,
 
         transact_out = self.transact_module(action_sequence, item_sequence, candidate)  # B x trans_dim
-        user_emb = self.user_embedding(user_id)  # B x user_emb_dim
+        user_emb = self.user_embedding(user_id).squeeze(1)  # B x user_emb_dim
         candidate_genre_emb = self.genre_embedding(candidate_genres)  # B x num_genres x emb_dim
         # Suppose 0 is the padding index
         mask = (candidate_genres != 0).unsqueeze(-1)  # B x num_genres x 1
@@ -132,12 +132,6 @@ class TransAct(nn.Module):
         user_viewed_mask = (user_viewed_genres != 0).unsqueeze(-1)  # B x num_genres x 1
         user_viewed_genre_emb_pooled = (user_viewed_genre_emb * user_viewed_mask).sum(dim=1) / user_viewed_mask.sum(dim=1).clamp(min=1)
 
-        print("transact_out shape:", transact_out.shape)
-        print("user_emb shape:", user_emb.shape)
-        print("candidate_genre_emb_pooled shape:", candidate_genre_emb_pooled.shape)
-        print("user_viewed_genre_emb_pooled shape:", user_viewed_genre_emb_pooled.shape)
-        print("num_movies_viewed shape:", num_movies_viewed.shape)
-
         dcnv2_in = torch.concat((transact_out, user_emb, candidate_genre_emb_pooled, user_viewed_genre_emb_pooled, num_movies_viewed), dim=1)
 
         out = self.dcnv2(dcnv2_in)
@@ -147,12 +141,12 @@ class TransAct(nn.Module):
 if __name__ == "__main__":
 
     transact_module_config = TransActModuleConfig(
-        max_seq_len=4,
+        max_seq_len=10,
         action_emb_dim=16,
         item_emb_dim=64,
         num_action=16,
         top_k=3,
-        transformer_num_head=1,
+        transformer_num_head=4,
         transformer_hidden_dim=1024,
         num_transformer_block=2,
     )
