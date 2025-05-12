@@ -30,7 +30,7 @@ This is a playground to re-implement model architectures from industry/academic 
 ### Road Map
 
 - [x] :white_check_mark: Deep Interest Network E2E training & inference example, MovieLen Small
-- [ ] TransAct training & inference example, MovieLen Small
+- [ ] TransAct ~training~ & inference example, MovieLen Small
 - [ ] MovieLen item ~embedding generation~, collaborative filtering, ~two-towers~, LLM
 - [ ] HSTU training & inference example, MoiveLen Small
 - [ ] Kuaishou Dataset
