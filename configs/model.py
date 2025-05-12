@@ -55,3 +55,30 @@ class TransActModuleConfig:
 class TransActModelConfig:
     transact_module_config: TransActModuleConfig
     dcnv2_config: DCNv2Config
+
+
+DEFAULT_TRANSACT_MODULE_CONFIG = TransActModuleConfig(
+    max_seq_len=4,
+    action_emb_dim=16,
+    item_emb_dim=64,
+    num_action=16,
+    top_k=3,
+    transformer_num_head=1,
+    transformer_hidden_dim=1024,
+    num_transformer_block=2,
+)
+
+DEFAULT_DCNV2_CONFIG = DCNv2Config(
+    feature_config={},
+    # TODO, need a better approach to compute the input dim to dcnv2 here
+    # the current 97 is from user_emb, user_genre_viewed, candidate_genre, num_dense_feature
+    input_dim=DEFAULT_TRANSACT_MODULE_CONFIG.transact_out_dim() + 97,
+    num_cross_layers=3,
+    deep_net_hidden_dims=[128, 64, 32],
+    head_hidden_dim=128,
+)
+
+DEFAULT_TRANSACT_CONFIG = TransActModelConfig(
+    transact_module_config=DEFAULT_TRANSACT_MODULE_CONFIG,
+    dcnv2_config=DEFAULT_DCNV2_CONFIG,
+)

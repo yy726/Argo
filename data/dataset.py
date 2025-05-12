@@ -177,6 +177,14 @@ class MovieLenTransActDataset(Dataset):
 
         feature_store = MovieLenFeatureStore(ratings=ratings, movies=movies, seq_length=history_seq_length)
 
+        # compute the positive/negative label
+        neg_idx, pos_idx = set(), set()
+        for idx, i in enumerate(feature_store.unique_ids):
+            if i < 4.0:
+                neg_idx.add(idx)
+            else:
+                pos_idx.add(idx)
+
         # obtain item sequence, use the [0:history_seq_length-1] sequence as the input and the last item as
         # candidate and action as label
         # TODO: find more efficient approach instead of making a whole copy
@@ -191,6 +199,16 @@ class MovieLenTransActDataset(Dataset):
         label = feature_store.action_sequence.copy()
         label["action_sequence"] = label["action_sequence"].apply(lambda x: x[history_seq_length - 1])
         label = label.rename(columns={"action_sequence": "label"})
+        def labeling(x, neg_idx, pos_idx):
+            """
+                Simple labeling logic
+            """
+            if x in neg_idx:
+                return 0.0
+            if x in pos_idx:
+                return 1.0
+            raise ValueError(f"Missing index {x}")
+        label['label'] = label['label'].apply(lambda x: labeling(x, neg_idx, pos_idx))
 
         # for genre feature, it is essentially a var-length feature but for input we need to have fix length as of now,
         # here we padding 0 for list
@@ -242,15 +260,16 @@ class MovieLenTransActDataset(Dataset):
         user_viewed_genres = self.data.iloc[index]["sorted_genres"]
         user_num_viewed_movies = self.data.iloc[index]["num_viewed_movies"]
         candidate_genres = self.data.iloc[index]["genres"]
+        # TODO: refactor this to make it more consistent
         return {
             "user_id": torch.LongTensor([user_id]),  # 1,
             "action_sequence": torch.LongTensor(action_sequence),  # seq,
             "item_sequence": self.embedding_store[item_sequence],  # seq x d_item
-            "candidate": torch.LongTensor([candidate_item]),  # 1
+            "candidate": self.embedding_store[candidate_item],  # d_item
             "user_viewed_genres": torch.LongTensor(user_viewed_genres),  # num_genres
             "user_num_viewed_movies": torch.tensor([user_num_viewed_movies]),  # 1
             "candidate_genres": torch.LongTensor(candidate_genres),  # num_genres
-        }
+        }, torch.tensor(self.data.iloc[index]['label'], dtype=torch.float)
 
 
 def prepare_movie_len_transact_dataset(embedding_store, eval_ratio: float = 0.1):
@@ -304,12 +323,12 @@ if __name__ == "__main__":
 
     loader = DataLoader(train_dataset, batch_size=5)
     it = iter(loader)
-    batch = next(it)
+    batch, label = next(it)
 
     assert batch["user_id"].shape == (5, 1)
     assert batch["action_sequence"].shape == (5, 14)
     assert batch["item_sequence"].shape == (5, 14, 64)
-    assert batch["candidate"].shape == (5, 1)
+    assert batch["candidate"].shape == (5, 64)
     assert batch["user_viewed_genres"].shape == (5, 5)
     assert batch["user_num_viewed_movies"].shape == (5, 1)
     assert batch["candidate_genres"].shape == (5, 5)
