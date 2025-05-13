@@ -1,6 +1,10 @@
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
+import os
+from dotenv import load_dotenv
 
+# Load environment variables from .env file
+load_dotenv()
 
 @dataclass
 class ModelConfig:
@@ -82,3 +86,6 @@ DEFAULT_TRANSACT_CONFIG = TransActModelConfig(
     transact_module_config=DEFAULT_TRANSACT_MODULE_CONFIG,
     dcnv2_config=DEFAULT_DCNV2_CONFIG,
 )
+
+# Load output model path from environment variable with a default fallback
+OUTPUT_MODEL_PATH = os.getenv("OUTPUT_MODEL_PATH", "./data/tmp")
