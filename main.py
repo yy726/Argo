@@ -1,4 +1,4 @@
-from configs.model import DIN_SMALL_CONFIG
+from configs.model import DIN_SMALL_CONFIG, OUTPUT_MODEL_PATH
 from data.dataset import prepare_movie_len_dataset
 from model.din import DeepInterestModel
 from trainer.simple_trainer import SimpleTrainer
@@ -11,4 +11,4 @@ if __name__ == "__main__":
     trainer = SimpleTrainer(model=model, train_dataset=train_dataset, eval_dataset=eval_dataset)
     trainer.train(num_epochs=5)
 
-    trainer.save(model_name="din-movie-len-small", movie_index=movie_index)
+    trainer.save(model_name="din-movie-len-small", movie_index=movie_index, path=OUTPUT_MODEL_PATH)
