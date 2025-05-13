@@ -16,8 +16,9 @@ This is a playground to re-implement model architectures from industry/academic 
 ### How to run locally
 
 1. install the dependency `pip install -r requirements.txt`, `pip install -e .`
-2. run `python server/inference_engine.py` to start the inference server, it would listen on 8000 port
-3. run `bash scripts/server_request.sh` to send a dummy request
+2. run `python main.py` to train the model with current env config.
+3. run `python server/inference_engine.py` to start the inference server, it would listen on 8000 port
+4. run `bash scripts/server_request.sh` to send a dummy request
 
 ### Papers
 

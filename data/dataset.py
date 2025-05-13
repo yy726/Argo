@@ -40,7 +40,7 @@ class MovieLenDataset(Dataset):
         # length from the ml-latest is 20, for now we assume that
         # sequence feature length + num positive sample <= 20
         user_history_sequence_feature = MovieLenFeatureStore.fetch_item_sequence(ratings=ratings, seq_length=history_seq_length).rename(
-            columns={"item_sequence": "history_sequence_feature"}
+            columns={"item_sequence": "history_sequence_feature", "userId": "user_id"}
         )  # user_id, history_sequence_feature
 
         # positive candidate generation, use rating >= 5.0 as positive
