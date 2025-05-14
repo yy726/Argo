@@ -22,8 +22,8 @@ This is a playground to re-implement model architectures from industry/academic 
 
 ### Papers
 
-- [Deep Interest Network for Click-Through Rate Prediction](https://arxiv.org/abs/1706.06978)
-- [TransAct: Transformer-based Realtime User Action Model for Recommendation at Pinterest](https://arxiv.org/abs/2306.00248)
+- :white_check_mark: [Deep Interest Network for Click-Through Rate Prediction](https://arxiv.org/abs/1706.06978)
+- :white_check_mark: [TransAct: Transformer-based Realtime User Action Model for Recommendation at Pinterest](https://arxiv.org/abs/2306.00248)
 - [Actions Speak Louder than Words: Trillion-Parameter Sequential Transducers for Generative Recommendations](https://arxiv.org/pdf/2402.17152)
 - [Better Generalization with Semantic IDs: A Case Study in Ranking for Recommendations](https://dl.acm.org/doi/abs/10.1145/3640457.3688190)
 - [DCN V2: Improved Deep & Cross Network and Practical Lessons for Web-scale Learning to Rank Systems](https://arxiv.org/pdf/2008.13535)
