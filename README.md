@@ -37,3 +37,9 @@ This is a playground to re-implement model architectures from industry/academic 
 - [ ] Kuaishou Dataset
 - [ ] Deep Interest Network Scaling, MovieLen 32M dataset
 - [ ] RQ-VAE
+- [ ] Multi-stage recommendation system, candidate generation, ranking, reranking
+- [ ] Nearline item embedding update
+- [ ] Feature store integration
+- [ ] Feature logging & training data generation pipeline
+- [ ] GPU training & inference enablement
+
