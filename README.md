@@ -43,4 +43,6 @@ This is a playground to re-implement model architectures from industry/academic 
 - [ ] Feature store integration
 - [ ] Feature logging & training data generation pipeline
 - [ ] GPU training & inference enablement
+- [ ] Ray integration (DPP reader + trainer arch)
+- [ ] Daft, Polars exploartion
 
