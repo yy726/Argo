@@ -97,7 +97,7 @@ class TransAct(nn.Module):
         self.transact_module = TransActModule(config.transact_module_config)
         self.dcnv2 = DCNV2(config.dcnv2_config)
 
-        self.user_embedding = nn.Embedding(num_embeddings=10000, embedding_dim=32)
+        self.user_embedding = nn.Embedding(num_embeddings=config.user_cardinality, embedding_dim=32)
         self.genre_embedding = nn.Embedding(num_embeddings=32, embedding_dim=32)
 
     def forward(self, features):
