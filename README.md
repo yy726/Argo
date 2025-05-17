@@ -43,6 +43,8 @@ This is a playground to re-implement model architectures from industry/academic 
 - [ ] Feature store integration
 - [ ] Feature logging & training data generation pipeline
 - [ ] GPU training & inference enablement
+- [ ] Integrate profiling, benchmarking, tuning, and monitoring for accelerator optimization
+- [ ] Optimize representative models with auto-tuning, kernel fusion, quantization, dynamic batching, etc
 - [ ] Ray integration (DPP reader + trainer arch)
 - [ ] Daft, Polars exploartion
 
