@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+
 @dataclass
 class ModelConfig:
     user_cardinality: int
@@ -59,6 +60,7 @@ class TransActModuleConfig:
 class TransActModelConfig:
     transact_module_config: TransActModuleConfig
     dcnv2_config: DCNv2Config
+    user_cardinality: int
 
 
 DEFAULT_TRANSACT_MODULE_CONFIG = TransActModuleConfig(
@@ -85,6 +87,13 @@ DEFAULT_DCNV2_CONFIG = DCNv2Config(
 DEFAULT_TRANSACT_CONFIG = TransActModelConfig(
     transact_module_config=DEFAULT_TRANSACT_MODULE_CONFIG,
     dcnv2_config=DEFAULT_DCNV2_CONFIG,
+    user_cardinality=10000,
+)
+
+LARGE_TRANSACT_CONFIG = TransActModelConfig(
+    transact_module_config=DEFAULT_TRANSACT_MODULE_CONFIG,
+    dcnv2_config=DEFAULT_DCNV2_CONFIG,
+    user_cardinality=340000,
 )
 
 # Load output model path from environment variable with a default fallback

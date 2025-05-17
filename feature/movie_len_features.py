@@ -63,6 +63,9 @@ class MovieLenFeatureStore:
         """
         A helper function to extract user rated movie ids in chronologic order, from earliest to latest
 
+        If the sequence length is insufficient, the row would be dropped for now
+        TODO: support a default PADDING token instead of dropping the row to preserve as many samples as possible
+
         return DataFrame in the following format
 
             |userId: integer|item_sequence: list[integer]|
@@ -72,6 +75,7 @@ class MovieLenFeatureStore:
             .apply(lambda x: x.sort_values("timestamp").head(seq_length)["movieId"].tolist())  # for group less than `seq_length`, this would return all rows
             .reset_index(name="item_sequence")
         )  # userId, item_sequence
+        item_sequence = item_sequence[item_sequence["item_sequence"].apply(len) >= seq_length].reset_index(drop=True)
         return item_sequence
 
     @classmethod
@@ -89,6 +93,7 @@ class MovieLenFeatureStore:
         action_sequence = (
             ratings.groupby("userId").apply(lambda x: x.sort_values("timestamp").head(seq_length)["rating_cat"].tolist()).reset_index(name="action_sequence")
         )  # userId, action_sequence
+        action_sequence = action_sequence[action_sequence["action_sequence"].apply(len) >= seq_length].reset_index(drop=True)
 
         # revert the addition of column to make it side effect free
         ratings.drop(columns=["rating_cat"], inplace=True)

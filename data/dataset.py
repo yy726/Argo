@@ -161,7 +161,7 @@ class MovieLenTransActDataset(Dataset):
 
     # TODO: consider refactor this out as feature function to be reused
     @classmethod
-    def prepare_data(cls, history_seq_length: int = 6, max_num_genres: int = 5):
+    def prepare_data(cls, history_seq_length: int = 6, max_num_genres: int = 5, dataset_type: DatasetType = DatasetType.MOVIE_LENS_LATEST_SMALL):
         """
         This is the core logic of dataset preparation, it group user's sequence based on
         the chronologic order, and returns the movie id and user ratings which is converted
@@ -170,7 +170,7 @@ class MovieLenTransActDataset(Dataset):
         For now, we only generate the sequence, the last item in the sequence could be used as
         the label for training
         """
-        cached_path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_SMALL)
+        cached_path = dataset_manager.get_dataset(dataset_type)
 
         ratings = pd.read_csv(os.path.join(cached_path, "ratings.csv"))
         movies = pd.read_csv(os.path.join(cached_path, "movies.csv"))
@@ -188,6 +188,15 @@ class MovieLenTransActDataset(Dataset):
         # obtain item sequence, use the [0:history_seq_length-1] sequence as the input and the last item as
         # candidate and action as label
         # TODO: find more efficient approach instead of making a whole copy
+
+        # when use larger movie len dataset, the dynamic of user increase and it would be more common to encounter
+        # user with shorter history, improve the logic here to properly handle the case
+        #
+        # there are 2 options:
+        #   1. remove the users the does not have sufficient history sequence
+        #   2. padding, but we need to shift movie ids and the current version of movie embedding would not be useable
+
+        # use option 1 for now
         user_item_sequence = feature_store.item_sequence.copy()  # userId, item_sequence
         user_item_sequence["item_sequence"] = user_item_sequence["item_sequence"].apply(lambda x: x[: history_seq_length - 1])
         user_action_sequence = feature_store.action_sequence.copy()  # userId, action_sequence
@@ -199,16 +208,18 @@ class MovieLenTransActDataset(Dataset):
         label = feature_store.action_sequence.copy()
         label["action_sequence"] = label["action_sequence"].apply(lambda x: x[history_seq_length - 1])
         label = label.rename(columns={"action_sequence": "label"})
+
         def labeling(x, neg_idx, pos_idx):
             """
-                Simple labeling logic
+            Simple labeling logic
             """
             if x in neg_idx:
                 return 0.0
             if x in pos_idx:
                 return 1.0
             raise ValueError(f"Missing index {x}")
-        label['label'] = label['label'].apply(lambda x: labeling(x, neg_idx, pos_idx))
+
+        label["label"] = label["label"].apply(lambda x: labeling(x, neg_idx, pos_idx))
 
         # for genre feature, it is essentially a var-length feature but for input we need to have fix length as of now,
         # here we padding 0 for list
@@ -269,11 +280,11 @@ class MovieLenTransActDataset(Dataset):
             "user_viewed_genres": torch.LongTensor(user_viewed_genres),  # num_genres
             "user_num_viewed_movies": torch.tensor([user_num_viewed_movies]),  # 1
             "candidate_genres": torch.LongTensor(candidate_genres),  # num_genres
-        }, torch.tensor(self.data.iloc[index]['label'], dtype=torch.float)
+        }, torch.tensor(self.data.iloc[index]["label"], dtype=torch.float)
 
 
-def prepare_movie_len_transact_dataset(embedding_store, eval_ratio: float = 0.1):
-    data, unique_ids = MovieLenTransActDataset.prepare_data(history_seq_length=15)
+def prepare_movie_len_transact_dataset(embedding_store, dataset_type, eval_ratio: float = 0.1):
+    data, unique_ids = MovieLenTransActDataset.prepare_data(history_seq_length=15, dataset_type=dataset_type)
 
     eval_data = data.sample(frac=eval_ratio)
     train_data = data.drop(index=eval_data.index)
