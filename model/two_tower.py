@@ -39,7 +39,7 @@ class TwoTowerModel(nn.Module):
         item_ids, B x 1, LongTensor
         """
         user_embeddings = self.user_embedding(user_ids)  # B x dim
-        item_embeddings = self.user_embedding(item_ids)  # B x dim
+        item_embeddings = self.item_embedding(item_ids)  # B x dim
 
         user_hidden = self.user_tower(user_embeddings)  # B x hidden_dim
         item_hidden = self.item_tower(item_embeddings)  # B x hidden_dim
