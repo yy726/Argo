@@ -94,7 +94,8 @@ class SimpleTrainer:
         A simple function to save pytorch model
         """
         if not os.path.exists(path):
-            raise ValueError(f"The given path {path} does not exists")
+            print(f"Unable to find path {path}, creating it...")
+            os.makedirs(path)
         filename = os.path.join(path, model_name)
         file_path = Path(filename)
         if not file_path.suffix:
