@@ -1,11 +1,12 @@
 # Common Loss Functions in Machine Learning
 
-## 1. MSE (Mean Squared Error)
+## 1. MSE / RMSE (Mean Squared Error)
 - Used for regression problems
 - Calculates the average squared difference between predicted and actual values
 - Formula: MSE = (1/n) * Σ(y_pred - y_true)²
 - Penalizes larger errors more heavily due to squaring
 - Differentiable and convex, making optimization easier
+- MSE is more data friendly, while RMSE is more human friendly
 
 ## 2. BCE (Binary Cross-Entropy)
 - Used for binary classification problems
@@ -26,3 +27,5 @@
 - Formula: -Σ(y_true * log(softmax(y_pred)))
 - Encourages the model to assign high probability to the correct class
 - Typically implemented as a single operation for numerical stability
+
+## TODO - contrastive lossfor representation learning

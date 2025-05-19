@@ -2,6 +2,12 @@
 
 Label leakage occurs when information that wouldn't be available at prediction time is accidentally included in training data, leading to artificially high model performance that doesn't generalize to real-world scenarios.
 
+Another case could occur when we created a "computed label" which refer to the label we try to predict. In following case, if we want to predict "fraudulent" with "refund_issued_within_1_day", it could cause label leak
+
+```
+refund_issued_within_1_day = (label == "fraudulent") and (refund_time < 1 day)
+```
+
 ## Example from MovieLens Dataset
 
 In our [MovieLens dataset preparation](../data/dataset.py), we prevent label leakage by carefully selecting which user ratings to use for training:
