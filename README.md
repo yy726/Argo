@@ -27,7 +27,7 @@ This is a playground to re-implement model architectures from industry/academic 
 - :white_check_mark: [TransAct: Transformer-based Realtime User Action Model for Recommendation at Pinterest](https://arxiv.org/abs/2306.00248)
 - [Actions Speak Louder than Words: Trillion-Parameter Sequential Transducers for Generative Recommendations](https://arxiv.org/pdf/2402.17152)
 - [Better Generalization with Semantic IDs: A Case Study in Ranking for Recommendations](https://dl.acm.org/doi/abs/10.1145/3640457.3688190)
-- [DCN V2: Improved Deep & Cross Network and Practical Lessons for Web-scale Learning to Rank Systems](https://arxiv.org/pdf/2008.13535)
+- :white_check_mark: [DCN V2: Improved Deep & Cross Network and Practical Lessons for Web-scale Learning to Rank Systems](https://arxiv.org/pdf/2008.13535)
 - [LONGER: Scaling Up Long Sequence Modeling in Industrial Recommenders](https://www.arxiv.org/pdf/2505.04421)
 
 ### Road Map
@@ -37,7 +37,6 @@ This is a playground to re-implement model architectures from industry/academic 
 - [ ] MovieLen item ~embedding generation~, collaborative filtering, ~two-towers~, LLM
 - [ ] HSTU training & inference example, MoiveLen Small
 - [ ] Kuaishou Dataset
-- [ ] Deep Interest Network Scaling, MovieLen 32M dataset
 - [ ] RQ-VAE
 - [ ] Multi-stage recommendation system, candidate generation, ranking, reranking
 - [ ] Nearline item embedding update
