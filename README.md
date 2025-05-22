@@ -32,19 +32,29 @@ This is a playground to re-implement model architectures from industry/academic 
 
 ### Road Map
 
+Modeling
+
 - [x] :white_check_mark: Deep Interest Network E2E training & inference example, MovieLen Small
 - [x] :white_check_mark: TransAct training & inference example, MovieLen Large
 - [ ] MovieLen item ~embedding generation~, collaborative filtering, ~two-towers~, LLM
 - [ ] HSTU training & inference example, MoiveLen Small
-- [ ] Kuaishou Dataset
 - [ ] RQ-VAE
-- [ ] Multi-stage recommendation system, candidate generation, ranking, reranking
+
+Data & Feature Engineering
+
+- [ ] Kuaishou Dataset
+- [ ] Ray integration (DPP reader + trainer arch)
+- [ ] Daft, Polars exploartion
+      
+Infra
+
+- [ ] Embedding Based Retrieval (EBR): DuckDB, FAISS
 - [ ] Nearline item embedding update
-- [ ] Feature store integration
+- [ ] Feature store integration: FEAST
 - [ ] Feature logging & training data generation pipeline
+
+GPU
+
 - [ ] GPU training & inference enablement
 - [ ] Integrate profiling, benchmarking, tuning, and monitoring for accelerator optimization
 - [ ] Optimize representative models with auto-tuning, kernel fusion, quantization, dynamic batching, etc
-- [ ] Ray integration (DPP reader + trainer arch)
-- [ ] Daft, Polars exploartion
-
