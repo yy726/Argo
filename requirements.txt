@@ -1,7 +1,8 @@
-pandas
-requests
-torch
-scikit-learn
+faiss-cpu
 fastapi
-uvicorn
+pandas
 python-dotenv
+requests
+scikit-learn
+torch
+uvicorn
