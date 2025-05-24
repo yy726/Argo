@@ -6,7 +6,7 @@ from model.transact import TransAct
 from trainer.simple_trainer import SimpleTrainer
 
 
-DEFAULT_MOVIE_LEN_EMBEDDING_PATH = "artifacts/movie_embeddings.pt"
+DEFAULT_MOVIE_LEN_EMBEDDING_PATH = "artifacts/movie_embeddings_v2.pt"
 
 if __name__ == "__main__":
     embedding_store = torch.load(DEFAULT_MOVIE_LEN_EMBEDDING_PATH, weights_only=False)
