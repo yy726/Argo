@@ -1,5 +1,7 @@
 faiss-cpu
 fastapi
+grpcio
+grpcio-tools
 pandas
 python-dotenv
 requests
