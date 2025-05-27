@@ -49,7 +49,7 @@ Data & Feature Engineering
       
 Infra
 
-- [ ] Embedding Based Retrieval (EBR): DuckDB, FAISS
+- [ ] Embedding Based Retrieval (EBR): DuckDB, ~FAISS~
 - [ ] Nearline item embedding update
 - [ ] Feature store integration: FEAST
 - [ ] Feature logging & training data generation pipeline
