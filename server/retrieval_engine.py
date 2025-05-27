@@ -9,13 +9,13 @@ import torch
 
 from configs.model import OUTPUT_MODEL_PATH
 from data.dataset_manager import DatasetType, dataset_manager
-from server.ebr_server import EBRServer
+from server.ebr_client import EBRClient
 from server.feature_server import FeatureServer, FeatureServerConfig
 
 
 @dataclass
 class Candidate:
-    movie_id: int
+    id: int
     title: str
     genres: str
     distance: float
@@ -44,9 +44,9 @@ class RetrievalEngine:
         self.num_candidates = config.num_candidates
 
         # load FAISS index which is used for embedding retrieval
-        self.ebr_server = None
+        self.ebr_client = None
         if config.enable_embedding_retrieval_engine:
-            self.ebr_server = EBRServer()
+            self.ebr_client = EBRClient()
 
     def generate_candidates(self, user_id):
         """
@@ -63,13 +63,13 @@ class RetrievalEngine:
         # user ratings reflect user's positive/negative preference to the model; here we only use the positive
         # interaction, which means that user rates over 4.0 on the movie, as the candidate generation seed
         user_interacted_candidate = self.feature_server.extract_user_interaction_sequence(user_id=user_id, ratings=4.0)
-        ebr_candidates = self.ebr_server.generate_candidates(query=user_interacted_candidate, num_candidate=self.num_candidates)
+        ebr_candidates = self.ebr_client.send_request(query=user_interacted_candidate, num_candidate=self.num_candidates)
 
         result = []
         for ebr_candidate in ebr_candidates:
             movie_id = ebr_candidate.id
             movie = self.movies.loc[movie_id]
-            result.append(Candidate(movie_id=movie_id, title=movie["title"], genres=movie["genres"], distance=ebr_candidate.score))
+            result.append(Candidate(id=movie_id, title=movie["title"], genres=movie["genres"], distance=ebr_candidate.score))
 
         return result
 

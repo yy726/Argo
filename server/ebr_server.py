@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from concurrent import futures
 import heapq
 import os
 import pickle
@@ -6,17 +6,15 @@ import pickle
 import faiss
 import torch
 
+import grpc
+
 from configs.model import OUTPUT_MODEL_PATH
+from configs.server import DEFAULT_EBR_SERVER_PORT
+import proto.ebr_pb2
+import proto.ebr_pb2_grpc
 
 
-@dataclass
-class EBRCandidate:
-    id: int  # id of the candidate
-    score: float  # score of the matching
-    source_id: int  # id of the source id used for this retrieval
-
-
-class EBRServer:
+class EBRServer(proto.ebr_pb2_grpc.EBRServiceServicer):
     """
     This is a simple abstraction around the EBR (embedding based retrieval),
     where we would leverage different types of embedding to preform ANN search.
@@ -32,6 +30,18 @@ class EBRServer:
         self.faiss_index = faiss.read_index(os.path.join(OUTPUT_MODEL_PATH, "movies.index"))
         with open(os.path.join(OUTPUT_MODEL_PATH, "movie_id_remapper.pkl"), "rb") as file:
             self.movie_id_remapper = pickle.load(file)
+
+    def Search(self, request, context):
+        query = request.ids
+        num_candidates = request.k
+
+        candidates = self.generate_candidates(query=query, num_candidate=num_candidates)
+        results = []
+        for c in candidates:
+            results.append(proto.ebr_pb2.SearchResult(
+                id=c["id"], score=c["score"], source_id=c["source_id"]
+            ))
+        return proto.ebr_pb2.SearchResponse(results=results)
 
     def generate_candidates(self, query, num_candidate):
         """
@@ -66,3 +76,17 @@ class EBRServer:
                 heapq.heappush(heap, (distances[array_index][next_index], array_index, next_index))
 
         return result
+
+def server():
+    """
+        Launch the service
+    """
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    proto.ebr_pb2_grpc.add_EBRServiceServicer_to_server(EBRServer(), server)
+    server.add_insecure_port(f'[::]:{DEFAULT_EBR_SERVER_PORT}')
+    server.start()
+    print(f"Server started on port {DEFAULT_EBR_SERVER_PORT}")
+    server.wait_for_termination()
+
+if __name__ == '__main__':
+    server()
