@@ -25,13 +25,12 @@ app = FastAPI()
 
 # initialize candidate generation and feature store
 feature_server = FeatureServer(
-    FeatureServerConfig(movie_len_history_seq_length=15, movie_len_dataset_type=DatasetType.MOVIE_LENS_LATEST_SMALL, embedding_store_path="artifacts/movie_embeddings.pt")
+    FeatureServerConfig(movie_len_history_seq_length=15, movie_len_dataset_type=DatasetType.MOVIE_LENS_LATEST_FULL, embedding_store_path="artifacts/movie_embeddings.pt")
 )
 retrieval_engine = RetrievalEngine(
     RetrievalEngineConfig(enable_embedding_retrieval_engine=True, num_candidates=10),
     feature_server,
 )
-candidates = retrieval_engine.generate_candidates(user_id=1)
 
 
 @app.post("/recommend/")
@@ -127,7 +126,7 @@ async def recommend_transact(request: RecommendationRequest):
     top_k_indices = sorted_indices[:10].tolist()
 
     # return topk
-    return {"recommendations": [{"movie_id": idx, "scores": score, "rank": i} for i, (idx, score) in enumerate(zip(top_k_indices, top_k_scores))]}
+    return {"recommendations": [{"movie_id": candidate_ids[idx], "scores": score, "rank": i} for i, (idx, score) in enumerate(zip(top_k_indices, top_k_scores))]}
 
 
 if __name__ == "__main__":
