@@ -1,3 +1,4 @@
+duckdb
 faiss-cpu
 fastapi
 grpcio
