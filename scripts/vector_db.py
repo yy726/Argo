@@ -1,4 +1,5 @@
 import os
+from time import time
 
 import duckdb
 import torch
@@ -30,18 +31,21 @@ movie_len_embeddings = torch.load(os.path.join(OUTPUT_MODEL_PATH, "movie_embeddi
 batch_size = 100
 num_batch = movie_len_embeddings.shape[0] // batch_size
 print(f"Total number of batch {num_batch}...")
-# for i in range(num_batch):
-#     batch = 
+start_time = time()
+for i in range(num_batch):
+    batch = movie_len_embeddings[i*batch_size:min((i+1)*batch_size, movie_len_embeddings.shape[0]), :].tolist()
+    insert_sql = "INSERT INTO movie_len_embedding_table VALUES "
+    values = [f"({i * batch_size + idx}, {embedding})" for idx, embedding in enumerate(batch)]
+    insert_sql += ",".join(values) + ";"
+    con.sql(insert_sql)
 
-# try to write a single batch
-batch = movie_len_embeddings[0:100, :].tolist()
-batch_idx = 0
-insert_sql = "INSERT INTO movie_len_embedding_table VALUES "
-values = [f"({batch_idx * batch_size + idx}, {embedding})" for idx, embedding in enumerate(batch)]
-insert_sql += ",".join(values) + ";"
-con.sql(insert_sql)
+    if i % 25 == 0:
+        time_eclipsed = time() - start_time
+        print(f"Batch {i} finished..., time eclipsed {time_eclipsed:.4f}")
 
-# create index on the table
+# create index on the table, here we use the HNSW index as the ANN algorithm
+# HNSW refers to hierarchy navigable small world algorithm, and here is a good resource
+# to learn more about how this algorithm works: https://www.pinecone.io/learn/series/faiss/hnsw/
 index_creation_sql = """
     CREATE INDEX movie_len_embedding_hnsw_index
     ON movie_len_embedding_table
