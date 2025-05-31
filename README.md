@@ -13,12 +13,21 @@ This is a playground to re-implement model architectures from industry/academic 
 - model: model code implementation
 - trainer: simple wrapper around train/val/eval loop
 - server: simple inference stack for recommendation system, including retrieval engine, feature server, model manager and inference engine
+- scripts: some scripts used for setup the system, such as DB ingestion
+
+### Prepare Step
+
+#### Embedding Based Retrieval Setup
+
+1. run `python movie_len_embedding.py` to generate the embeddings (only support the collabrative embedding)
+2. run `python movie_len_index.py` to generate the FAISS index
+3. run `python scripts/vector_db.py` to ingest embedding into DuckDB
 
 ### How to run locally
 
 1. install the dependency `pip install -r requirements.txt`, `pip install -e .`
 2. run `python main.py` to train the model with current env config.
-3. run `python -m server/ebr_server.py` to start the grpc server for embedding based retrieval, it would listen on port 50051 by default
+3. run `python -m server/ebr_server.py` to start the grpc server for embedding based retrieval, it would listen on port 50051 by default; if you use DuckDB then this step could be skipped
 4. run `python server/inference_engine.py` to start the inference server, it would listen on 8000 port
 5. run `bash scripts/server_request.sh` to send a dummy request (there is one for DIN and one for TransAct as of now, will parameterized the request in the future)
 
@@ -49,7 +58,7 @@ Data & Feature Engineering
       
 Infra
 
-- [ ] Embedding Based Retrieval (EBR): DuckDB, ~FAISS~
+- [x] :white_check_mark: Embedding Based Retrieval (EBR): DuckDB, ~FAISS~
 - [ ] Nearline item embedding update
 - [ ] Feature store integration: FEAST
 - [ ] Feature logging & training data generation pipeline
