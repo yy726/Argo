@@ -28,7 +28,7 @@ feature_server = FeatureServer(
     FeatureServerConfig(movie_len_history_seq_length=15, movie_len_dataset_type=DatasetType.MOVIE_LENS_LATEST_FULL, embedding_store_path="artifacts/movie_embeddings.pt")
 )
 retrieval_engine = RetrievalEngine(
-    RetrievalEngineConfig(enable_embedding_retrieval_engine=True, num_candidates=10),
+    RetrievalEngineConfig(enable_duckdb_retrieval_engine=True, num_candidates=10),
     feature_server,
 )
 

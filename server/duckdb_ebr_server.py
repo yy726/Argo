@@ -4,6 +4,7 @@ import os
 import duckdb
 
 from configs.model import OUTPUT_MODEL_PATH
+import proto.ebr_pb2
 
 
 class DuckEBRServer:
@@ -69,7 +70,9 @@ class DuckEBRServer:
             if next_index < len(indices[array_index]):  # check if we have consumed all elements in this array
                 heapq.heappush(heap, (distances[array_index][next_index], array_index, next_index))
 
-        return result
+        # To make the interface consistent, we reuse the entity we have define in protobuf for ebr server
+        return [proto.ebr_pb2.SearchResult(
+                id=c["id"], score=c["score"], source_id=c["source_id"]) for c in result]
 
 if __name__ == "__main__":
     server = DuckEBRServer()
