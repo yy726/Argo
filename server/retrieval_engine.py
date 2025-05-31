@@ -10,6 +10,7 @@ import torch
 from configs.model import OUTPUT_MODEL_PATH
 from data.dataset_manager import DatasetType, dataset_manager
 from server.ebr_client import EBRClient
+from server.duckdb_ebr_server import DuckEBRServer
 from server.feature_server import FeatureServer, FeatureServerConfig
 
 
@@ -23,8 +24,9 @@ class Candidate:
 
 @dataclass
 class RetrievalEngineConfig:
-    enable_embedding_retrieval_engine: bool
-    num_candidates: int
+    enable_embedding_retrieval_engine: bool = False
+    enable_duckdb_retrieval_engine: bool = False
+    num_candidates: int = 20
 
 
 class RetrievalEngine:
@@ -43,10 +45,17 @@ class RetrievalEngine:
         self.feature_server = feature_server
         self.num_candidates = config.num_candidates
 
+        # for simplicity, we don't support multi source ebr engine; there would be some complexity on
+        # how to fairly merge the candidates obtained from different engine together
+        assert not (config.enable_embedding_retrieval_engine and config.enable_duckdb_retrieval_engine), \
+            "only one ebr retrieval engine is supported as of now"
+
         # load FAISS index which is used for embedding retrieval
         self.ebr_client = None
         if config.enable_embedding_retrieval_engine:
             self.ebr_client = EBRClient()
+        elif config.enable_duckdb_retrieval_engine:
+            self.ebr_client = DuckEBRServer()
 
     def generate_candidates(self, user_id):
         """
@@ -76,7 +85,8 @@ class RetrievalEngine:
 
 if __name__ == "__main__":
 
-    config = RetrievalEngineConfig(enable_embedding_retrieval_engine=True, num_candidates=10)
+    config = RetrievalEngineConfig(enable_duckdb_retrieval_engine=True, 
+                                   num_candidates=20)
     feature_server = FeatureServer(
         FeatureServerConfig(movie_len_history_seq_length=15, movie_len_dataset_type=DatasetType.MOVIE_LENS_LATEST_SMALL, embedding_store_path="artifacts/movie_embeddings.pt")
     )
