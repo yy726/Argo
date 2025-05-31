@@ -1,4 +1,5 @@
 import os
+import pickle
 from time import time
 
 import duckdb
@@ -28,14 +29,22 @@ table_creation_sql = """
 con.sql(table_creation_sql)
 
 movie_len_embeddings = torch.load(os.path.join(OUTPUT_MODEL_PATH, "movie_embeddings_v2.pt"), weights_only=False)
+with open(os.path.join(OUTPUT_MODEL_PATH, "movie_id_remapper.pkl"), "rb") as file:
+    movie_id_remapper = pickle.load(file)
 batch_size = 100
 num_batch = movie_len_embeddings.shape[0] // batch_size
 print(f"Total number of batch {num_batch}...")
 start_time = time()
 for i in range(num_batch):
-    batch = movie_len_embeddings[i*batch_size:min((i+1)*batch_size, movie_len_embeddings.shape[0]), :].tolist()
+    batch_idx = [i for i in range(i*batch_size, min((i+1)*batch_size, movie_len_embeddings.shape[0]))]
+    # we need to do a round of filter here to remove the zombie embeddings which does not have movie id associated
+    batch_idx = [i for i in batch_idx if i in movie_id_remapper]
+    movie_ids = [movie_id_remapper.get(i) for i in batch_idx]  # here we extract the movie ids out
+    batch = movie_len_embeddings[batch_idx, :].tolist()
     insert_sql = "INSERT INTO movie_len_embedding_table VALUES "
-    values = [f"({i * batch_size + idx}, {embedding})" for idx, embedding in enumerate(batch)]
+    values = [f"({movie_id}, {embedding})" for movie_id, embedding in zip(movie_ids, batch)]
+    if not values:  # skip if there is no items to insert
+        continue
     insert_sql += ",".join(values) + ";"
     con.sql(insert_sql)
 
@@ -56,10 +65,10 @@ con.sql(index_creation_sql)
 
 # simple query check
 select_sql = f"""
-    SELECT *
+    SELECT movie_id, array_cosine_distance(embedding, {movie_len_embeddings[0].tolist()}::FLOAT[64]) as score
     FROM movie_len_embedding_table
-    ORDER BY array_distance(embedding, {movie_len_embeddings[0].tolist()}::FLOAT[64])
-    LIMIT 5;
+    ORDER BY array_cosine_distance(embedding, {movie_len_embeddings[0].tolist()}::FLOAT[64])
+    LIMIT 10;
 """
 result = con.sql(select_sql).fetchall()
 print(result)
