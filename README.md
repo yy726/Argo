@@ -39,6 +39,7 @@ This is a playground to re-implement model architectures from industry/academic 
 - [Better Generalization with Semantic IDs: A Case Study in Ranking for Recommendations](https://dl.acm.org/doi/abs/10.1145/3640457.3688190)
 - :white_check_mark: [DCN V2: Improved Deep & Cross Network and Practical Lessons for Web-scale Learning to Rank Systems](https://arxiv.org/pdf/2008.13535)
 - [LONGER: Scaling Up Long Sequence Modeling in Industrial Recommenders](https://www.arxiv.org/pdf/2505.04421)
+- [MTGR: Industrial-Scale Generative Recommendation Framework in Meituan](https://www.arxiv.org/abs/2505.18654)
 
 ### Road Map
 
@@ -58,7 +59,7 @@ Data & Feature Engineering
       
 Infra
 
-- [x] :white_check_mark: Embedding Based Retrieval (EBR): DuckDB, ~FAISS~
+- [x] :white_check_mark: Embedding Based Retrieval (EBR): DuckDB, FAISS
 - [ ] Nearline item embedding update
 - [ ] Feature store integration: FEAST
 - [ ] Feature logging & training data generation pipeline
@@ -68,3 +69,6 @@ GPU
 - [ ] GPU training & inference enablement
 - [ ] Integrate profiling, benchmarking, tuning, and monitoring for accelerator optimization
 - [ ] Optimize representative models with auto-tuning, kernel fusion, quantization, dynamic batching, etc
+
+### Reference
+- [DuckDB](https://duckdb.org/docs/stable/clients/python/overview.html)
