@@ -14,6 +14,8 @@ This is a playground to re-implement model architectures from industry/academic 
 - trainer: simple wrapper around train/val/eval loop
 - server: simple inference stack for recommendation system, including retrieval engine, feature server, model manager and inference engine
 - scripts: some scripts used for setup the system, such as DB ingestion
+- get-started: some userful notebooks to help you get faimilar with common techniques & concept in machine learning and recommendation system
+- embedding: scripts used for generating embedding
 
 ### Prepare Step
 
@@ -53,7 +55,7 @@ Modeling
 
 Data & Feature Engineering
 
-- [ ] Kuaishou Dataset
+- [ ] Kuaishou Dataset: https://kuairand.com/
 - [ ] Ray integration (DPP reader + trainer arch)
 - [ ] Daft, Polars exploartion
       
