@@ -42,6 +42,7 @@ This is a playground to re-implement model architectures from industry/academic 
 - :white_check_mark: [DCN V2: Improved Deep & Cross Network and Practical Lessons for Web-scale Learning to Rank Systems](https://arxiv.org/pdf/2008.13535)
 - [LONGER: Scaling Up Long Sequence Modeling in Industrial Recommenders](https://www.arxiv.org/pdf/2505.04421)
 - [MTGR: Industrial-Scale Generative Recommendation Framework in Meituan](https://www.arxiv.org/abs/2505.18654)
+- [TransAct V2: Lifelong User Action Sequence Modeling on Pinterest Recommendation](https://arxiv.org/pdf/2506.02267)
 
 ### Road Map
 
