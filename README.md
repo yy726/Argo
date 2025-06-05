@@ -50,7 +50,7 @@ Modeling
 
 - [x] :white_check_mark: Deep Interest Network E2E training & inference example, MovieLen Small
 - [x] :white_check_mark: TransAct training & inference example, MovieLen Large
-- [ ] MovieLen item ~embedding generation~, collaborative filtering, ~two-towers~, LLM
+- [ ] MovieLen item ~embedding generation~, collaborative filtering, ~two-towers~, LLM ((QWen3-embedding)[https://huggingface.co/Qwen/Qwen3-Embedding-0.6B] is out)
 - [ ] HSTU training & inference example, MoiveLen Small
 - [ ] RQ-VAE
 
@@ -75,3 +75,4 @@ GPU
 
 ### Reference
 - [DuckDB](https://duckdb.org/docs/stable/clients/python/overview.html)
+- [QWen3](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B)
