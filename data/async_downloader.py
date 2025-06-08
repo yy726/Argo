@@ -17,15 +17,17 @@ dotenv.load_dotenv()
 
 NUM_CPU = 8
 
+
 @ray.remote
 class DownloaderActor:
     """
-        This is a ray actor that downloads data using TMDB API asynchronously.
+    This is a ray actor that downloads data using TMDB API asynchronously.
 
-        For each batch, we would directly append the results to the local jsonl file
-        for persistence; this is not the most efficient way but it a simplified way to
-        achieve snapshotting.
+    For each batch, we would directly append the results to the local jsonl file
+    for persistence; this is not the most efficient way but it a simplified way to
+    achieve snapshotting.
     """
+
     def __init__(self, actor_id: int, movie_ids: List[int]):
         if not os.environ.get("TMDB_API_KEY"):
             raise ValueError("TMDB_API_KEY is not set")
@@ -37,7 +39,7 @@ class DownloaderActor:
         self.cooldown_time = random.randint(3, 10)
 
         self.output_file = os.path.join("/tmp", f"tmdb_data_{self.actor_id}.jsonl")
-    
+
     async def download_movie_data(self, movie_id: int) -> dict:
         try:
             movie = await self.tmdb.movie(movie_id).details(append_to_response="credits,external_ids")
@@ -58,27 +60,28 @@ class DownloaderActor:
 
     async def download_batch(self) -> bool:
         """
-            We download all the movie data, we would download the movie data in batches.
+        We download all the movie data, we would download the movie data in batches.
         """
         num_batches = len(self.movie_ids) // self.batch_size
         print(f"Downloading {num_batches} batches")
         for i in range(num_batches):
             try:
-                batch_movie_ids = self.movie_ids[i*self.batch_size:min((i+1)*self.batch_size, len(self.movie_ids))]
+                batch_movie_ids = self.movie_ids[i * self.batch_size : min((i + 1) * self.batch_size, len(self.movie_ids))]
                 tasks = [self.download_movie_data(movie_id) for movie_id in batch_movie_ids]
                 results = await asyncio.gather(*tasks)
-                
+
                 with jsonlines.open(self.output_file, "a") as f:
                     f.write_all(results)
             except Exception as e:
                 print(f"Error downloading batch {i}: {e}")
                 continue
-            
+
             await asyncio.sleep(self.cooldown_time)
             if i % 10 == 0:
                 print(f"Downloaded {i*self.batch_size} movies")
-        
+
         return True
+
 
 def main():
     dataset_path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_FULL)
@@ -94,27 +97,27 @@ def main():
     # Create multiple actors
     num_actors = NUM_CPU
     batch_size = len(tmdb_ids) // num_actors
-    actors = [DownloaderActor.remote(i, tmdb_ids[i*batch_size:(i+1)*batch_size]) for i in range(num_actors)]
-    
+    actors = [DownloaderActor.remote(i, tmdb_ids[i * batch_size : (i + 1) * batch_size]) for i in range(num_actors)]
+
     # Start time
     start_time = time.time()
-    
+
     # Submit tasks to actors
     futures = [actor.download_batch.remote() for actor in actors]
-    
+
     # Get results
     results = ray.get(futures)
-    
+
     # End time
     end_time = time.time()
-    
+
     # Print results
     print(f"Download completed in {end_time - start_time:.2f} seconds, results: {results}")
-   
+
 
 if __name__ == "__main__":
     print("Ray initializing...")
     if ray.is_initialized():
         ray.shutdown()
     ray.init(num_cpus=NUM_CPU)
-    main() 
+    main()

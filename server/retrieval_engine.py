@@ -47,8 +47,7 @@ class RetrievalEngine:
 
         # for simplicity, we don't support multi source ebr engine; there would be some complexity on
         # how to fairly merge the candidates obtained from different engine together
-        assert not (config.enable_embedding_retrieval_engine and config.enable_duckdb_retrieval_engine), \
-            "only one ebr retrieval engine is supported as of now"
+        assert not (config.enable_embedding_retrieval_engine and config.enable_duckdb_retrieval_engine), "only one ebr retrieval engine is supported as of now"
 
         # load FAISS index which is used for embedding retrieval
         self.ebr_client = None
@@ -85,8 +84,7 @@ class RetrievalEngine:
 
 if __name__ == "__main__":
 
-    config = RetrievalEngineConfig(enable_duckdb_retrieval_engine=True, 
-                                   num_candidates=20)
+    config = RetrievalEngineConfig(enable_duckdb_retrieval_engine=True, num_candidates=20)
     feature_server = FeatureServer(
         FeatureServerConfig(movie_len_history_seq_length=15, movie_len_dataset_type=DatasetType.MOVIE_LENS_LATEST_SMALL, embedding_store_path="artifacts/movie_embeddings.pt")
     )

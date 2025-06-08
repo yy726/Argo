@@ -36,7 +36,7 @@ num_batch = movie_len_embeddings.shape[0] // batch_size
 print(f"Total number of batch {num_batch}...")
 start_time = time()
 for i in range(num_batch):
-    batch_idx = [i for i in range(i*batch_size, min((i+1)*batch_size, movie_len_embeddings.shape[0]))]
+    batch_idx = [i for i in range(i * batch_size, min((i + 1) * batch_size, movie_len_embeddings.shape[0]))]
     # we need to do a round of filter here to remove the zombie embeddings which does not have movie id associated
     batch_idx = [i for i in batch_idx if i in movie_id_remapper]
     movie_ids = [movie_id_remapper.get(i) for i in batch_idx]  # here we extract the movie ids out

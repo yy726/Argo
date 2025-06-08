@@ -38,9 +38,7 @@ class EBRServer(proto.ebr_pb2_grpc.EBRServiceServicer):
         candidates = self.generate_candidates(query=query, num_candidate=num_candidates)
         results = []
         for c in candidates:
-            results.append(proto.ebr_pb2.SearchResult(
-                id=c["id"], score=c["score"], source_id=c["source_id"]
-            ))
+            results.append(proto.ebr_pb2.SearchResult(id=c["id"], score=c["score"], source_id=c["source_id"]))
         return proto.ebr_pb2.SearchResponse(results=results)
 
     def generate_candidates(self, query, num_candidate):
@@ -77,16 +75,18 @@ class EBRServer(proto.ebr_pb2_grpc.EBRServiceServicer):
 
         return result
 
+
 def server():
     """
-        Launch the service
+    Launch the service
     """
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     proto.ebr_pb2_grpc.add_EBRServiceServicer_to_server(EBRServer(), server)
-    server.add_insecure_port(f'[::]:{DEFAULT_EBR_SERVER_PORT}')
+    server.add_insecure_port(f"[::]:{DEFAULT_EBR_SERVER_PORT}")
     server.start()
     print(f"Server started on port {DEFAULT_EBR_SERVER_PORT}")
     server.wait_for_termination()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     server()
