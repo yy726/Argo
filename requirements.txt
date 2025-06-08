@@ -1,14 +1,15 @@
-cinemagoer
 duckdb
 faiss-cpu
 fastapi
 grpcio
 grpcio-tools
+jsonlines
 pandas
 python-dotenv
 ray
 requests
 scikit-learn
+themoviedb[full]
 torch
 transformers
 uvicorn
