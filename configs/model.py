@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+MOVIE_LEN_ITEM_CARDINALITY = 350000
+
 
 @dataclass
 class ModelConfig:

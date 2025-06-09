@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+from configs.model import MOVIE_LEN_ITEM_CARDINALITY
+
 
 class TwoTowerModel(nn.Module):
     def __init__(self):
@@ -10,7 +12,7 @@ class TwoTowerModel(nn.Module):
         # here we use user/item to different the 2 towers, which is a common convention in industry
         self.embedding_dim = 32
         self.user_cardinality = 300000
-        self.item_cardinality = 350000
+        self.item_cardinality = MOVIE_LEN_ITEM_CARDINALITY
 
         # create embedding lookup table
         self.user_embedding = nn.Embedding(num_embeddings=self.user_cardinality, embedding_dim=self.embedding_dim)

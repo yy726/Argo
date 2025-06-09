@@ -5,6 +5,7 @@ grpcio
 grpcio-tools
 jsonlines
 pandas
+pyarrow
 python-dotenv
 ray
 requests
