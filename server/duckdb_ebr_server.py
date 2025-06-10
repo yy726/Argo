@@ -15,16 +15,16 @@ class DuckEBRServer:
 
     def send_request(self, query, num_candidate):
         """
-            Use the DuckDB to perform the ANN search
+        Use the DuckDB to perform the ANN search
 
-            There should be some optimization on the multi embedding search but the
-            vss extension does not support yet. It seems that if we use the similarity
-            search joins the HNSW index is not utilized:
+        There should be some optimization on the multi embedding search but the
+        vss extension does not support yet. It seems that if we use the similarity
+        search joins the HNSW index is not utilized:
 
-            https://duckdb.org/docs/stable/core_extensions/vss.html#bonus-vector-similarity-search-joins
+        https://duckdb.org/docs/stable/core_extensions/vss.html#bonus-vector-similarity-search-joins
 
-            Thus we would just do search each document individually and merge the result
-            together
+        Thus we would just do search each document individually and merge the result
+        together
         """
         # retrieve the query embedding
         select_sql = f"""
@@ -33,7 +33,7 @@ class DuckEBRServer:
             WHERE movie_id IN ({','.join(str(i) for i in query)});
         """
         query_embeddings = self.conn.sql(select_sql).fetchall()
-        
+
         # use the array_cosine_distance as the distance function because we build
         # the index using cosine metrics, note here that it is the cosine distance,
         # which is 1 - cosine_similarity
@@ -71,8 +71,8 @@ class DuckEBRServer:
                 heapq.heappush(heap, (distances[array_index][next_index], array_index, next_index))
 
         # To make the interface consistent, we reuse the entity we have define in protobuf for ebr server
-        return [proto.ebr_pb2.SearchResult(
-                id=c["id"], score=c["score"], source_id=c["source_id"]) for c in result]
+        return [proto.ebr_pb2.SearchResult(id=c["id"], score=c["score"], source_id=c["source_id"]) for c in result]
+
 
 if __name__ == "__main__":
     server = DuckEBRServer()
