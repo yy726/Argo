@@ -43,6 +43,7 @@ This is a playground to re-implement model architectures from industry/academic 
 - [LONGER: Scaling Up Long Sequence Modeling in Industrial Recommenders](https://www.arxiv.org/pdf/2505.04421)
 - [MTGR: Industrial-Scale Generative Recommendation Framework in Meituan](https://www.arxiv.org/abs/2505.18654)
 - [TransAct V2: Lifelong User Action Sequence Modeling on Pinterest Recommendation](https://arxiv.org/pdf/2506.02267)
+- [Learnable Item Tokenization for Generative Recommendation](https://arxiv.org/pdf/2405.07314)
 
 ### Road Map
 
@@ -52,7 +53,7 @@ Modeling
 - [x] :white_check_mark: TransAct training & inference example, MovieLen Large
 - [x] :white_check_mark: MovieLen item embedding generation, collaborative filtering, two-towers, LLM ([QWen3-embedding](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B) is out)
 - [ ] HSTU training & inference example, MoiveLen Small
-- [ ] RQ-VAE
+- [x] :white_check_mark: RQ-VAE
 
 Data & Feature Engineering
 
