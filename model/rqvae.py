@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+from sklearn.cluster import KMeans
+
 """
     This is a simple trail to implement the RQ-VAE model based on the following paper:
 
@@ -28,8 +30,26 @@ class VectorQuantization(nn.Module):
         self.beta = beta
 
         self.embedding = nn.Embedding(num_embeddings, embedding_dim)
-        # TODO: in the original implementations, k-means is used to initialize the codebook
-        self.embedding.weight.data.uniform_(-1 / num_embeddings, 1 / num_embeddings)
+        self.is_initialized = False
+        self.device = torch.device("mps" if torch.mps.is_available() else "cpu")
+
+    @torch.no_grad()
+    def init_codebook(self, x: torch.Tensor):
+        """
+            Use the K-means to initialize the codebook
+
+            I have tried to use the uniform initialization but it won't work as the quantization
+            would collapse to the same value.
+
+            x: B x d
+        """
+        print(f"Initializing the codebook with K-means...")
+        kd = KMeans(n_clusters=self.num_embeddings, n_init=10)
+        kd.fit(x.cpu().numpy())
+        
+        self.embedding.weight.data.copy_(torch.from_numpy(kd.cluster_centers_).to(self.device))
+        self.is_initialized = True
+
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -40,6 +60,8 @@ class VectorQuantization(nn.Module):
         
         # In karpathy's implementation, there is a kmeans initialization here,
         # plan to add it later
+        if not self.is_initialized:
+            self.init_codebook(x)
         
         # Some simple illustration on what this code is doing: 
         # first, it is computing the euclidean distance between the input vector and the codebook, 
@@ -55,6 +77,7 @@ class VectorQuantization(nn.Module):
         )  # B x N
 
         _, ind = (-dist).topk(k=1, dim=1)  # B x 1
+        ind = ind.squeeze(-1)  # B,
 
         quantized = self.embedding(ind)  # B x d
         
@@ -114,7 +137,7 @@ class RQVAE(nn.Module):
 
         self.quantize_layers = nn.ModuleList(
             modules=[
-                VectorQuantization(num_embeddings=128, embedding_dim=output_dim, beta=0.1)
+                VectorQuantization(num_embeddings=32, embedding_dim=output_dim, beta=0.1)
             for _ in range(num_quantize) ]
         )
 
@@ -129,14 +152,15 @@ class RQVAE(nn.Module):
             For simplicity, we would also return the loss in this forward pass
         """
 
-        x = self.encoder(x)
+        res = self.encoder(x)
         quantized_loss = 0
         quantized_vectors, quantized_indices = [], []
         for quantize_layer in self.quantize_layers:
-            q, ind, loss = quantize_layer(x)
+            q, ind, loss = quantize_layer(res)
             quantized_loss += loss  # cumulate the quantization loss in each codebook
             quantized_vectors.append(q)  # this is used for reconstruction loss
             quantized_indices.append(ind)  # this is going to be the semantic ids
+            res = res - q
         
         # the torch stack here change n B x d tensors to B x d x n, and we sum over the last
         # dimension to get the sum of quantized vectors for each input
@@ -147,3 +171,11 @@ class RQVAE(nn.Module):
         
         return loss, quantized_indices
 
+
+if __name__ == "__main__":
+    model = RQVAE(input_dim=2048, hidden_dim=1024, output_dim=1024, num_quantize=3)
+
+    x = torch.randn(128, 2048)
+    loss, quantized_indices = model(x)
+    print(loss)
+    print(quantized_indices)
