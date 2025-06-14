@@ -8,14 +8,14 @@ This is a playground to re-implement model architectures from industry/academic 
 
 ### Repo structure
 
-- data: functions for dataset management, such as downloading public dataset, cache management, etc
-- feature: functions for featuer engeering, right now primarily read data from benchmark and use Pandas to do certain feature engineer
-- model: model code implementation
-- trainer: simple wrapper around train/val/eval loop
-- server: simple inference stack for recommendation system, including retrieval engine, feature server, model manager and inference engine
-- scripts: some scripts used for setup the system, such as DB ingestion
-- get-started: some userful notebooks to help you get faimilar with common techniques & concept in machine learning and recommendation system
-- embedding: scripts used for generating embedding
+- `data`: functions for dataset management, such as downloading public dataset, cache management, etc
+- `embedding`: scripts used for generating embedding
+- `feature`: functions for featuer engeering, right now primarily read data from benchmark and use Pandas to do certain feature engineer
+- `get-started`: some userful notebooks to help you get faimilar with common techniques & concept in machine learning and recommendation system
+- `model`: model code implementation
+- `trainer`: simple wrapper around train/val/eval loop
+- `server`: simple inference stack for recommendation system, including retrieval engine, feature server, model manager and inference engine
+- `scripts`: some scripts used for setup the system, such as DB ingestion
 
 ### Prepare Step
 
