@@ -6,8 +6,8 @@ import torch.optim as optim
 
 class RQVAETrainer:
     """
-        A slightly modified version of the simple trainer to train the RQ-VAE model
-        since the RQ-VAE model use a slight different way to compute the loss (no label)
+    A slightly modified version of the simple trainer to train the RQ-VAE model
+    since the RQ-VAE model use a slight different way to compute the loss (no label)
     """
 
     def __init__(self, model, data_loader):
@@ -16,7 +16,7 @@ class RQVAETrainer:
         self.model = model
         self.data_loader = data_loader
 
-        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-6, weight_decay=0.01)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-4, weight_decay=0.01)
 
         self.model.train()
         self.model.to(self.device)
@@ -30,7 +30,7 @@ class RQVAETrainer:
             running_loss = 0
             for i, batch in enumerate(self.data_loader):
                 batch = batch.to(self.device)
-                
+
                 loss, quantized_indices = self.model(batch)
 
                 self.optimizer.zero_grad()

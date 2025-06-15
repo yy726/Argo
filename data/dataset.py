@@ -291,9 +291,10 @@ def prepare_movie_len_transact_dataset(embedding_store, dataset_type, history_se
 
 class MovieLenSemanticEmbeddingDataset(Dataset):
     """
-        This is the dataset to load the semantic embedding for movie len dataset
-        to be used for the RQ-VAE model
+    This is the dataset to load the semantic embedding for movie len dataset
+    to be used for the RQ-VAE model
     """
+
     def __init__(self):
         dataset_path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_FULL)
         movies = pd.read_csv(os.path.join(dataset_path, "movies.csv"))
@@ -305,9 +306,9 @@ class MovieLenSemanticEmbeddingDataset(Dataset):
         embeddings = np.load(os.path.join(OUTPUT_MODEL_PATH, "movie_len_llm_embeddings.npy"))
         semantic_embeddings = embeddings[movie_ids]
         print(f"Found {semantic_embeddings.shape[0]} movies in the embedding file")
-        
+
         all_zero = np.all(semantic_embeddings == 0, axis=1)
-        abnormal_movie_indice = np.where(all_zero)[0]   # this is all of the movie ids that are all zero
+        abnormal_movie_indice = np.where(all_zero)[0]  # this is all of the movie ids that are all zero
         print(f"Found {abnormal_movie_indice.shape[0]} movies that are all zero")
 
         self.data = semantic_embeddings[~all_zero]  # fetch the one that is not all zero
@@ -319,7 +320,7 @@ class MovieLenSemanticEmbeddingDataset(Dataset):
 
     def __len__(self):
         return self.data.shape[0]
-    
+
     def __getitem__(self, index):
         return torch.tensor(self.data[index], dtype=torch.float32)
 
