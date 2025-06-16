@@ -4,6 +4,7 @@ fastapi
 grpcio
 grpcio-tools
 jsonlines
+k-means-constrained
 pandas
 pyarrow
 python-dotenv

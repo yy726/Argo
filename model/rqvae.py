@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from sklearn.cluster import KMeans
 
@@ -12,6 +13,17 @@ from sklearn.cluster import KMeans
 
         - https://github.com/karpathy/deep-vector-quantization/blob/main/dvq/model/quantize.py
 """
+
+
+def sample_gumble(shape, device, eps=1e-20):
+    u = torch.rand(shape, device=device)
+    return -torch.log(-torch.log(u + eps) + eps)
+
+
+def gumbel_softmax(logits, temperature=2.0):
+    gumbel_noise = sample_gumble(logits.shape, logits.device)
+    y = logits + gumbel_noise
+    return F.softmax(y / temperature, dim=-1)
 
 
 class VectorQuantization(nn.Module):
@@ -76,8 +88,6 @@ class VectorQuantization(nn.Module):
         _, ind = (-dist).topk(k=1, dim=1)  # B x 1
         ind = ind.squeeze(-1)  # B,
 
-        quantized = self.norm(self.embedding(ind))  # B x d
-
         # In the google paper, the loss here is used to update the codebook, which used the
         # stop gradient operation to construct the loss.
         # The detach operation would create a new tensor that is not part of the computation graph,
@@ -85,11 +95,17 @@ class VectorQuantization(nn.Module):
         # stop gradient effect.
         # This stop gradient is to prevent the codebook to collapse, which the quantized vector would be
         # updated while the input does not have to change to much, to prevent them moving closer to each other.
-        loss = self.beta * (x - quantized.detach()).pow(2).sum(dim=-1) + (x.detach() - quantized).pow(2).sum(dim=-1)  # B,
 
         # This is the straight-through estimator, which is used to backpropagate the gradient since the
         # topk is not differentiable.
-        quantized = x + (quantized - x).detach()
+        # quantized = self.norm(self.embedding(ind))  # B x d
+        # quantized = x + (quantized - x).detach()
+
+        # Another approach is to use the gumbel softmax to make the quantized vector differentiable
+        weights = gumbel_softmax(-dist, temperature=1.0)
+        quantized = torch.mm(weights, codebook)  # B x d
+
+        loss = self.beta * (x - quantized.detach()).pow(2).sum(dim=-1) + (x.detach() - quantized).pow(2).sum(dim=-1)  # B,
 
         return quantized, ind, loss
 
@@ -147,7 +163,7 @@ class RQVAE(nn.Module):
         self.encoder = MLP(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, normalize=True)
         self.decoder = MLP(input_dim=output_dim, hidden_dim=hidden_dim, output_dim=input_dim, normalize=True)
 
-        self.quantize_layers = nn.ModuleList(modules=[VectorQuantization(num_embeddings=32, embedding_dim=output_dim, beta=0.5, normalize=i==0) for i in range(num_quantize)])
+        self.quantize_layers = nn.ModuleList(modules=[VectorQuantization(num_embeddings=32, embedding_dim=output_dim, beta=0.5, normalize=i == 0) for i in range(num_quantize)])
 
     def forward(self, x: torch.Tensor):
         """
