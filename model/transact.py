@@ -51,6 +51,9 @@ class TransActModule(nn.Module):
         This is a simplified version, where we would ignore the request time in the original
         paper which is used for time window masking
 
+        The input item_sequence embedding dimension might be different from the d_item in the config, and we
+        would apply a learnable projection layer to do the dimension reduction
+
             action_sequence: the action type in user history behavior, B x seq
             item_sequence: the item embedding in user history behavior, B x seq x d_item
             candidate: the candidate item embedding to be scored, B x d_item
@@ -100,6 +103,9 @@ class TransAct(nn.Module):
         self.user_embedding = nn.Embedding(num_embeddings=config.user_cardinality, embedding_dim=32)
         self.genre_embedding = nn.Embedding(num_embeddings=32, embedding_dim=32)
 
+        # if we use semantic embedding, add a projection layer to do the dimension reduction
+        self.embedding_projection = nn.Linear(config.semantic_embedding_dim, config.transact_module_config.item_emb_dim) if config.use_semantic_embedding else nn.Identity()
+
     def forward(self, features):
         """
         features: dict[str, tensor], represent the input in a dict format to simplify
@@ -109,6 +115,10 @@ class TransAct(nn.Module):
         action_sequence = features["action_sequence"]
         item_sequence = features["item_sequence"]
         candidate = features["candidate"]
+
+        # dimension reduction
+        item_sequence = self.embedding_projection(item_sequence)
+        candidate = self.embedding_projection(candidate)
 
         # sparse feature
         user_id = features["user_id"]  # B,
@@ -141,7 +151,7 @@ class TransAct(nn.Module):
 if __name__ == "__main__":
 
     transact_module_config = TransActModuleConfig(
-        max_seq_len=10,
+        max_seq_len=5,
         action_emb_dim=16,
         item_emb_dim=64,
         num_action=16,
@@ -164,6 +174,9 @@ if __name__ == "__main__":
     trans_act_config = TransActModelConfig(
         transact_module_config=transact_module_config,
         dcnv2_config=dcnv2_config,
+        user_cardinality=1000,
+        use_semantic_embedding=True,
+        semantic_embedding_dim=2048,
     )
 
     trans_act = TransAct(trans_act_config)
@@ -174,17 +187,10 @@ if __name__ == "__main__":
         "candidate_genres": torch.tensor([[1, 2, 3], [2, 3, 4]], dtype=torch.int),
         "user_viewed_genres": torch.tensor([[1], [2]], dtype=torch.int),
         "action_sequence": torch.tensor([[1, 2, 3, 1, 2], [2, 3, 3, 3, 1]], dtype=torch.int),
-        "item_sequence": torch.ones((2, 5, 64), dtype=torch.float) / 64,
-        "candidate": torch.ones((2, 64), dtype=torch.float) / 64,
+        "item_sequence": torch.ones((2, 5, 2048), dtype=torch.float) / 2048,
+        "candidate": torch.ones((2, 2048), dtype=torch.float) / 2048,
+        "user_num_viewed_movies": torch.tensor([[1], [3]], dtype=torch.float),
     }
-
-    # trans_act = TransActModule(transact_module_config)
-
-    # use MovieLen simulated data
-    # action_sequence = torch.tensor([[1, 2, 3, 1, 2], [2, 3, 3, 3, 1]], dtype=torch.int)
-    # print(action_sequence)
-    # item_sequence = torch.ones((2, 5, 64), dtype=torch.float) / 64  # note that the d_item needs to be aligned with the model for now
-    # candidate = torch.ones((2, 64), dtype=torch.float) / 64
 
     trans_act = TransAct(trans_act_config)
 
