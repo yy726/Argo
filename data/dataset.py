@@ -295,7 +295,16 @@ class MovieLenSemanticEmbeddingDataset(Dataset):
     to be used for the RQ-VAE model
     """
 
-    def __init__(self):
+    @classmethod
+    def prepare_semantic_embeddings(cls):
+        """
+        This is the core function to prepare the semantic embeddings for the movie len dataset
+        It will load the movie id from the movies.csv file, and then load the semantic embeddings
+        from the movie_len_llm_embeddings.npy file
+
+        It will also filter out the movies that are all zero, and then normalize the embeddings
+        to have unit length
+        """
         dataset_path = dataset_manager.get_dataset(DatasetType.MOVIE_LENS_LATEST_FULL)
         movies = pd.read_csv(os.path.join(dataset_path, "movies.csv"))
         movie_ids = movies["movieId"].to_list()
@@ -311,76 +320,20 @@ class MovieLenSemanticEmbeddingDataset(Dataset):
         abnormal_movie_indice = np.where(all_zero)[0]  # this is all of the movie ids that are all zero
         print(f"Found {abnormal_movie_indice.shape[0]} movies that are all zero")
 
-        self.data = semantic_embeddings[~all_zero]  # fetch the one that is not all zero
-        print(f"Found {self.data.shape[0]} movies with normal semantic embeddings")
+        semantic_embeddings = semantic_embeddings[~all_zero]  # fetch the one that is not all zero
 
         # the original embedding is not normalized and this might cause training issue since we are using
         # the L2 distance
-        self.data = self.data / np.linalg.norm(self.data, axis=1, keepdims=True)
+        semantic_embeddings = semantic_embeddings / np.linalg.norm(semantic_embeddings, axis=1, keepdims=True)
+
+        return semantic_embeddings
+
+    def __init__(self):
+        self.data = MovieLenSemanticEmbeddingDataset.prepare_semantic_embeddings()
+        print(f"Found {self.data.shape[0]} movies with normal semantic embeddings")
 
     def __len__(self):
         return self.data.shape[0]
 
     def __getitem__(self, index):
         return torch.tensor(self.data[index], dtype=torch.float32)
-
-
-if __name__ == "__main__":
-    # train_dataset, eval_dataset, movie_index = prepare_movie_len_dataset(history_seq_length=8, reindex=True)
-
-    # loader = DataLoader(dataset=train_dataset, batch_size=5)
-
-    # it = iter(loader)
-    # batch = next(it)
-
-    # assert batch[0]['user_id'].shape == (5, 1)
-    # assert batch[0]['item_id'].shape == (5, 1)
-    # assert batch[0]['user_history_behavior'].shape == (5, 8)
-
-    # assert batch[1].shape == (5,)
-
-    # # check type of the output
-    # assert batch[0]['user_id'].dtype == torch.int64
-    # assert batch[0]['item_id'].dtype == torch.int64
-
-    # print("MovieLenDataset batch shape test passed...")
-
-    # train_dataset, eval_dataset = prepare_movie_len_rating_dataset()
-
-    # loader = DataLoader(train_dataset, batch_size=5, shuffle=True)
-    # it = iter(loader)
-    # batch = next(it)
-
-    # assert len(batch) == 3
-    # users, movies, ratings = batch
-    # assert len(users) == 5
-    # assert len(movies) == 5
-    # assert len(ratings) == 5
-
-    # print("MovieLenRatingDataset batch shape test passed...")
-
-    # embedding_store = torch.ones((300000, 64))
-    # train_dataset, eval_dataset = prepare_movie_len_transact_dataset(embedding_store=embedding_store, dataset_type=DatasetType.MOVIE_LENS_LATEST_SMALL, history_seq_length=15)
-
-    # loader = DataLoader(train_dataset, batch_size=5)
-    # it = iter(loader)
-    # batch, label = next(it)
-
-    # assert batch["user_id"].shape == (5, 1)
-    # assert batch["action_sequence"].shape == (5, 14)
-    # assert batch["item_sequence"].shape == (5, 14, 64)
-    # assert batch["candidate"].shape == (5, 64)
-    # assert batch["user_viewed_genres"].shape == (5, 5)
-    # assert batch["user_num_viewed_movies"].shape == (5, 1)
-    # assert batch["candidate_genres"].shape == (5, 5)
-
-    # print("MovieLenTransActDataset batch shape test passed...")
-
-    # TODO move the above to a unittest
-    loader = DataLoader(MovieLenSemanticEmbeddingDataset(), batch_size=5)
-    it = iter(loader)
-    batch = next(it)
-
-    assert batch.shape == (5, 2048)
-
-    print("MovieLenSemanticEmbeddingDataset batch shape test passed...")

@@ -63,12 +63,25 @@ class TransActModelConfig:
     transact_module_config: TransActModuleConfig
     dcnv2_config: DCNv2Config
     user_cardinality: int
+    use_semantic_embedding: bool = False
+    semantic_embedding_dim: int = 2048
 
 
 DEFAULT_TRANSACT_MODULE_CONFIG = TransActModuleConfig(
     max_seq_len=4,
     action_emb_dim=16,
     item_emb_dim=64,
+    num_action=16,
+    top_k=3,
+    transformer_num_head=1,
+    transformer_hidden_dim=1024,
+    num_transformer_block=2,
+)
+
+SEMANTIC_TRANSACT_MODULE_CONFIG = TransActModuleConfig(
+    max_seq_len=4,
+    action_emb_dim=16,  # in transact v2, this is changed to 2 * item_dim and is added not concatenated
+    item_emb_dim=64,  # use a larger embedding dimension
     num_action=16,
     top_k=3,
     transformer_num_head=1,
@@ -96,6 +109,13 @@ LARGE_TRANSACT_CONFIG = TransActModelConfig(
     transact_module_config=DEFAULT_TRANSACT_MODULE_CONFIG,
     dcnv2_config=DEFAULT_DCNV2_CONFIG,
     user_cardinality=340000,
+)
+
+SEMANTIC_TRANSACT_CONFIG = TransActModelConfig(
+    transact_module_config=SEMANTIC_TRANSACT_MODULE_CONFIG,
+    dcnv2_config=DEFAULT_DCNV2_CONFIG,
+    user_cardinality=340000,
+    use_semantic_embedding=True,
 )
 
 # Load output model path from environment variable with a default fallback
