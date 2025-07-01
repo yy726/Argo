@@ -18,20 +18,18 @@ if __name__ == "__main__":
     parser.add_argument("--semantic-embedding", action="store_true")
     args = parser.parse_args()
 
-    config, model_name = None, 'transact-movie-len-full'
+    config, model_name = None, "transact-movie-len-full"
     if args.semantic_embedding:
         embedding_store = np.load(SEMANTIC_MOVIE_LEN_EMBEDDING_PATH)
         embedding_store = embedding_store.astype(np.float32)
         config = SEMANTIC_TRANSACT_CONFIG
-        model_name = 'transact-movie-len-full-semantic'
+        model_name = "transact-movie-len-full-semantic"
     else:
         embedding_store = torch.load(DEFAULT_MOVIE_LEN_EMBEDDING_PATH, weights_only=False)
         config = LARGE_TRANSACT_CONFIG
 
     model = TransAct(config=config)
-    train_dataset, eval_dataset = prepare_movie_len_transact_dataset(embedding_store=embedding_store, 
-                                                                     dataset_type=DatasetType.MOVIE_LENS_LATEST_FULL, 
-                                                                     history_seq_length=15)
+    train_dataset, eval_dataset = prepare_movie_len_transact_dataset(embedding_store=embedding_store, dataset_type=DatasetType.MOVIE_LENS_LATEST_FULL, history_seq_length=15)
 
     trainer = SimpleTrainer(model=model, train_dataset=train_dataset, eval_dataset=eval_dataset)
     trainer.train(num_epochs=1)
