@@ -67,6 +67,7 @@ Infra
 - [ ] Nearline item embedding update
 - [ ] Feature store integration: FEAST
 - [ ] Feature logging & training data generation pipeline
+- [ ] 🚧 Pytorch Lightening integration
 
 GPU
 
