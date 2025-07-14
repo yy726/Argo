@@ -54,6 +54,7 @@ Modeling
 - [x] :white_check_mark: MovieLen item embedding generation, collaborative filtering, two-towers, LLM ([QWen3-embedding](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B) is out)
 - [ ] HSTU training & inference example, MoiveLen Small
 - [x] :white_check_mark: RQ-VAE
+- [ ] Generative Retrieval via various strategies: NTP, MTP with semtanic ids, token represention with ANN
 
 Data & Feature Engineering
 
@@ -68,6 +69,7 @@ Infra
 - [ ] Feature store integration: FEAST
 - [ ] Feature logging & training data generation pipeline
 - [ ] 🚧 Pytorch Lightening integration
+- [ ] Reinforcement learning training infrastructure for recommendation task
 
 GPU
 
