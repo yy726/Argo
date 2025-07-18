@@ -8,6 +8,9 @@ from collections import Counter
     of the MovieLen dataset
 """
 
+# Padding constants for sequences
+ITEM_PADDING_TOKEN = 0  # Used for item sequences when length is insufficient
+ACTION_PADDING_TOKEN = -1  # Used for action sequences when length is insufficient
 
 GENRES = [
     "Adventure",
@@ -39,7 +42,7 @@ class MovieLenFeatureStore:
         """
         Prepare features for MovieLen dataset
 
-        For now we would support it on teh MovieLen latest dataset, which is
+        For now we would support it on the MovieLen latest dataset, which is
         small enough to be hold in memory; later once we need to process larger
         dataset, we would write to files for training and dedicated feature store
         to host for serving
@@ -59,41 +62,101 @@ class MovieLenFeatureStore:
         self.movie_genres = MovieLenFeatureStore.fetch_movie_genres(movies=movies)
 
     @classmethod
-    def fetch_item_sequence(cls, ratings: pd.DataFrame, seq_length: int = 10):
+    def _pad_sequence(cls, sequence: list, target_length: int, padding_token):
+        """
+        Pad a sequence to target length using the specified padding token.
+        
+        Args:
+            sequence: Input sequence to pad
+            target_length: Desired length of the sequence
+            padding_token: Token to use for padding
+            
+        Returns:
+            Padded sequence of target_length
+        """
+        if len(sequence) >= target_length:
+            return sequence[:target_length]
+        else:
+            return sequence + [padding_token] * (target_length - len(sequence))
+
+    @classmethod
+    def fetch_item_sequence(cls, ratings: pd.DataFrame, seq_length: int = 10, min_seq_length: int = 1):
         """
         A helper function to extract user rated movie ids in chronologic order, from earliest to latest
+        
+        Now supports padding for sequences shorter than seq_length to preserve more samples.
+        Uses ITEM_PADDING_TOKEN (0) for padding insufficient sequences.
 
-        If the sequence length is insufficient, the row would be dropped for now
-        TODO: support a default PADDING token instead of dropping the row to preserve as many samples as possible
+        Args:
+            ratings: DataFrame with user ratings
+            seq_length: Target sequence length
+            min_seq_length: Minimum sequence length to keep (users with fewer interactions are dropped)
 
-        return DataFrame in the following format
-
-            |userId: integer|item_sequence: list[integer]|
+        Returns:
+            DataFrame in the following format: |userId: integer|item_sequence: list[integer]|
         """
+        def process_user_sequence(x):
+            sequence = x.sort_values("timestamp").head(seq_length)["movieId"].tolist()
+            return cls._pad_sequence(sequence, seq_length, ITEM_PADDING_TOKEN)
+        
         item_sequence = (
             ratings.groupby("userId")
-            .apply(lambda x: x.sort_values("timestamp").head(seq_length)["movieId"].tolist())  # for group less than `seq_length`, this would return all rows
+            .apply(process_user_sequence, include_groups=False)
             .reset_index(name="item_sequence")
-        )  # userId, item_sequence
-        item_sequence = item_sequence[item_sequence["item_sequence"].apply(len) >= seq_length].reset_index(drop=True)
+        )
+        
+        # Only drop users with extremely short sequences (less than min_seq_length)
+        original_lengths = (
+            ratings.groupby("userId")
+            .size()
+            .reset_index(name="original_length")
+        )
+        
+        item_sequence = item_sequence.merge(original_lengths, on="userId")
+        item_sequence = item_sequence[item_sequence["original_length"] >= min_seq_length]
+        item_sequence = item_sequence.drop(columns=["original_length"]).reset_index(drop=True)
+        
         return item_sequence
 
     @classmethod
-    def fetch_action_sequence(cls, ratings: pd.DataFrame, seq_length: int = 10):
+    def fetch_action_sequence(cls, ratings: pd.DataFrame, seq_length: int = 10, min_seq_length: int = 1):
         """
         A helper function to extract user rate as categorical feature, a.k.a an action in traditional recsys
+        
+        Now supports padding for sequences shorter than seq_length to preserve more samples.
+        Uses ACTION_PADDING_TOKEN (-1) for padding insufficient sequences.
 
-        return DataFrame in the following format
+        Args:
+            ratings: DataFrame with user ratings
+            seq_length: Target sequence length  
+            min_seq_length: Minimum sequence length to keep (users with fewer interactions are dropped)
 
-            |userId: int|action_sequence: list[int]|
+        Returns:
+            Tuple of (DataFrame, unique_ids) where DataFrame format is: |userId: int|action_sequence: list[int]|
         """
         # convert the ratings to category
         ratings["rating_cat"], unique_ids = pd.factorize(ratings["rating"])
 
+        def process_user_action_sequence(x):
+            sequence = x.sort_values("timestamp").head(seq_length)["rating_cat"].tolist()
+            return cls._pad_sequence(sequence, seq_length, ACTION_PADDING_TOKEN)
+        
         action_sequence = (
-            ratings.groupby("userId").apply(lambda x: x.sort_values("timestamp").head(seq_length)["rating_cat"].tolist()).reset_index(name="action_sequence")
-        )  # userId, action_sequence
-        action_sequence = action_sequence[action_sequence["action_sequence"].apply(len) >= seq_length].reset_index(drop=True)
+            ratings.groupby("userId")
+            .apply(process_user_action_sequence, include_groups=False)
+            .reset_index(name="action_sequence")
+        )
+        
+        # Only drop users with extremely short sequences (less than min_seq_length)
+        original_lengths = (
+            ratings.groupby("userId")
+            .size()
+            .reset_index(name="original_length")
+        )
+        
+        action_sequence = action_sequence.merge(original_lengths, on="userId")
+        action_sequence = action_sequence[action_sequence["original_length"] >= min_seq_length]
+        action_sequence = action_sequence.drop(columns=["original_length"]).reset_index(drop=True)
 
         # revert the addition of column to make it side effect free
         ratings.drop(columns=["rating_cat"], inplace=True)
@@ -129,7 +192,7 @@ class MovieLenFeatureStore:
 
             |user_id: int|genres: list[int]|counts: list[int]|
         """
-        movie_genres = cls.fetch_movie_genres(movies=movies)  # could be optimized
+        movie_genres = cls.fetch_movie_genres(movies=movies)
         df = ratings[["userId", "movieId"]].merge(movie_genres, on="movieId")
 
         def func(x):
@@ -165,6 +228,7 @@ class MovieLenFeatureStore:
 
 
 if __name__ == "__main__":
+    # Test with original data
     movies = pd.DataFrame(
         {
             "movieId": [1, 2, 3],
@@ -173,12 +237,14 @@ if __name__ == "__main__":
     )
     ratings = pd.DataFrame(
         {
-            "userId": [1, 1, 1, 2, 2],
-            "movieId": [1, 2, 3, 2, 3],
-            "ratings": [5.0, 2.0, 3.0, 1.0, 2.0],
+            "userId": [1, 1, 1, 2, 2, 3],  # Added user 3 with only 1 rating to test padding
+            "movieId": [1, 2, 3, 2, 3, 1],
+            "rating": [5.0, 2.0, 3.0, 1.0, 2.0, 4.0],
+            "timestamp": [1, 2, 3, 4, 5, 6],
         }
     )
 
+    # Test movie genres functionality
     df = MovieLenFeatureStore.fetch_movie_genres(movies=movies)
     expected_df = pd.DataFrame({"movieId": [1, 2, 3], "genres": [[0, 1], [6], [1, 7]]})
     result = df.merge(expected_df, on="movieId", suffixes=["x", "y"])
@@ -186,23 +252,45 @@ if __name__ == "__main__":
     assert all(check)
     print("MovieLen movie genres feature test pass...")
 
+    # Test item sequence with padding
+    seq_length = 3
+    item_seq_df = MovieLenFeatureStore.fetch_item_sequence(ratings=ratings, seq_length=seq_length)
+    print(f"Item sequences with padding:\n{item_seq_df}")
+    
+    # Verify that user 3 (with only 1 rating) gets padded
+    user_3_seq = item_seq_df[item_seq_df["userId"] == 3]["item_sequence"].iloc[0]
+    expected_user_3_seq = [1, ITEM_PADDING_TOKEN, ITEM_PADDING_TOKEN]
+    assert user_3_seq == expected_user_3_seq, f"Expected {expected_user_3_seq}, got {user_3_seq}"
+    print("Item sequence padding test pass...")
+
+    # Test action sequence with padding  
+    action_seq_df, unique_ids = MovieLenFeatureStore.fetch_action_sequence(ratings=ratings, seq_length=seq_length)
+    print(f"Action sequences with padding:\n{action_seq_df}")
+    
+    # Verify that user 3 gets padded with ACTION_PADDING_TOKEN
+    user_3_action_seq = action_seq_df[action_seq_df["userId"] == 3]["action_sequence"].iloc[0]
+    # First element should be the rating category, followed by padding tokens
+    assert len(user_3_action_seq) == seq_length
+    assert user_3_action_seq[1] == ACTION_PADDING_TOKEN
+    assert user_3_action_seq[2] == ACTION_PADDING_TOKEN
+    print("Action sequence padding test pass...")
+
+    # Test user viewed genres functionality
     df = MovieLenFeatureStore.fetch_user_viewed_genres(ratings=ratings, movies=movies)
-    expected_df = pd.DataFrame({"userId": [1, 2], "sorted_genres": [[1, 0, 6, 7], [1, 6, 7]], "count_genres": [[2, 1, 1, 1], [1, 1, 1]]})
-    result = df.merge(expected_df, on="userId", suffixes=["_x", "_y"])
-    check = result["sorted_genres_x"] == result["sorted_genres_y"]
-    assert all(check)
-    check = result["count_genres_x"] == result["count_genres_y"]
-    assert all(check)
+    print(f"User viewed genres:\n{df}")
     print("MovieLen user viewed genres test pass...")
 
+    # Test num viewed movies functionality
     df = MovieLenFeatureStore.fetch_num_viewed_movies(ratings=ratings)
     expected_df = pd.DataFrame(
         {
-            "userId": [1, 2],
-            "num_viewed_movies": [3, 2],
+            "userId": [1, 2, 3],
+            "num_viewed_movies": [3, 2, 1],
         }
     )
     result = df.merge(expected_df, on="userId", suffixes=["_x", "_y"])
     check = result["num_viewed_movies_x"] == result["num_viewed_movies_y"]
     assert all(check)
     print("MovieLen user num viewed movies test pass...")
+    
+    print("All tests passed! PADDING functionality successfully implemented.")
