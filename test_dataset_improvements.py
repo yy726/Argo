@@ -12,7 +12,8 @@ import pandas as pd
 import torch
 
 # Add project root to path
-sys.path.insert(0, '/Users/yiyao/workspace/Argo')
+project_root = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, project_root)
 
 from data.dataset import (
     DataCache, 
