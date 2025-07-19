@@ -278,6 +278,29 @@ if __name__ == "__main__":
     # Test user viewed genres functionality
     df = MovieLenFeatureStore.fetch_user_viewed_genres(ratings=ratings, movies=movies)
     print(f"User viewed genres:\n{df}")
+    
+    # Add proper assertions to verify the results
+    # Expected results based on test data:
+    # User 1: movieId [1,2,3] -> genres [0,1,6,1,7] -> counts {0:1, 1:2, 6:1, 7:1} -> sorted [(1,2), (0,1), (6,1), (7,1)]
+    # User 2: movieId [2,3] -> genres [6,1,7] -> counts {1:1, 6:1, 7:1} -> sorted [(1,1), (6,1), (7,1)]  
+    # User 3: movieId [1] -> genres [0,1] -> counts {0:1, 1:1} -> sorted [(0,1), (1,1)]
+    expected_results = {
+        1: {"sorted_genres": [1, 0, 6, 7], "count_genres": [2, 1, 1, 1]},
+        2: {"sorted_genres": [1, 6, 7], "count_genres": [1, 1, 1]}, 
+        3: {"sorted_genres": [0, 1], "count_genres": [1, 1]}
+    }
+    
+    # Verify each user's results
+    for user_id, expected in expected_results.items():
+        user_row = df[df["userId"] == user_id].iloc[0]
+        actual_genres = user_row["sorted_genres"]
+        actual_counts = user_row["count_genres"]
+        
+        assert actual_genres == expected["sorted_genres"], \
+            f"User {user_id} sorted_genres mismatch: expected {expected['sorted_genres']}, got {actual_genres}"
+        assert actual_counts == expected["count_genres"], \
+            f"User {user_id} count_genres mismatch: expected {expected['count_genres']}, got {actual_counts}"
+    
     print("MovieLen user viewed genres test pass...")
 
     # Test num viewed movies functionality
