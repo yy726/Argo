@@ -313,9 +313,15 @@ class MMoERecommendationModel(MMoEModel):
         # Concatenate embeddings
         features = torch.cat([user_emb, item_emb], dim=-1)
         
-        # Add dense features if provided
+        # Add dense features if provided, or create zero tensor if expected but not provided
         if dense_features is not None:
             features = torch.cat([features, dense_features], dim=-1)
+        elif self.num_dense_features > 0:
+            # Create zero tensor for missing dense features to maintain dimension consistency
+            batch_size = user_emb.size(0)
+            zero_dense_features = torch.zeros(batch_size, self.num_dense_features, 
+                                            device=user_emb.device, dtype=user_emb.dtype)
+            features = torch.cat([features, zero_dense_features], dim=-1)
         
         # Forward through MMoE
         return super().forward(features, return_expert_weights)
