@@ -87,10 +87,11 @@ class FeatureProcessor:
                      max_positive: int = 10, max_negative: int = 50) -> pd.DataFrame:
         """Create positive and negative labels from ratings efficiently."""
         # Use view instead of full copy for better memory efficiency
-        filtered_ratings = ratings.groupby("userId").apply(
-            lambda x: x.sort_values("timestamp").iloc[history_seq_length:], 
-            include_groups=False
-        ).reset_index(drop=True)
+        filtered_ratings = (
+            ratings.groupby("userId")
+            .apply(lambda x: x.sort_values("timestamp").iloc[history_seq_length:])
+            .reset_index(drop=True)
+        )
         
         # Create labels more efficiently using vectorized operations
         positive_mask = filtered_ratings["rating"] >= positive_threshold
@@ -99,7 +100,7 @@ class FeatureProcessor:
         positive = (
             filtered_ratings[positive_mask]
             .groupby("userId")
-            .apply(lambda x: x.sort_values("timestamp").head(max_positive), include_groups=False)
+            .apply(lambda x: x.sort_values("timestamp").head(max_positive))
             .reset_index(drop=True)
             .drop(columns=["rating", "timestamp"])
             .rename(columns={"userId": "user_id", "movieId": "movie_id"})
@@ -109,7 +110,7 @@ class FeatureProcessor:
         negative = (
             filtered_ratings[negative_mask]
             .groupby("userId")
-            .apply(lambda x: x.sort_values("timestamp").head(max_negative), include_groups=False)
+            .apply(lambda x: x.sort_values("timestamp").head(max_negative))
             .reset_index(drop=True)
             .drop(columns=["rating", "timestamp"])
             .rename(columns={"userId": "user_id", "movieId": "movie_id"})
